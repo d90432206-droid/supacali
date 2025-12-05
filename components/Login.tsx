@@ -15,9 +15,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // 新增 Logo 載入狀態控制
   const [logoError, setLogoError] = useState(false);
-  const [imgTs] = useState(Date.now());
 
   useEffect(() => {
     // Load technicians for the dropdown
@@ -64,10 +62,13 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
              {!logoError ? (
                  <div className="bg-white p-4 rounded-2xl mb-6 shadow-lg shadow-brand-500/20">
                     <img 
-                        src={`/logo.png?t=${imgTs}`} 
+                        src="/logo.png" 
                         alt="Company Logo" 
                         className="h-16 w-auto object-contain"
-                        onError={() => setLogoError(true)}
+                        onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            setLogoError(true);
+                        }}
                     />
                  </div>
              ) : (
