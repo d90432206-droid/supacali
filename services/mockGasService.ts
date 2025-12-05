@@ -1,7 +1,7 @@
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Order, Product, Customer, CalibrationStatus, Technician } from '../types';
-import { CONFIG } from '../config';
+import { CONFIG } from './config';
 
 class SupabaseService {
   private supabase: SupabaseClient | null = null;
