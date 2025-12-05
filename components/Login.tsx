@@ -15,6 +15,9 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // 新增 Logo 載入狀態控制
+  const [logoError, setLogoError] = useState(false);
+  const [imgTs] = useState(Date.now());
 
   useEffect(() => {
     // Load technicians for the dropdown
@@ -56,12 +59,25 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   if (role === 'selection') {
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-         <div className="mb-8 text-center animate-fade-in">
-             <div className="w-16 h-16 bg-brand-500 rounded-2xl mx-auto flex items-center justify-center mb-4 shadow-lg shadow-brand-500/20">
-                 <span className="text-3xl font-bold text-white">CC</span>
-             </div>
-             <h1 className="text-2xl font-bold text-white">制宜電測校正系統</h1>
-             <p className="text-slate-400 text-sm mt-2">請選擇您的登入身分</p>
+         <div className="mb-8 text-center animate-fade-in flex flex-col items-center">
+             {/* Logo 載入區域 */}
+             {!logoError ? (
+                 <div className="bg-white p-4 rounded-2xl mb-6 shadow-lg shadow-brand-500/20">
+                    <img 
+                        src={`/logo.png?t=${imgTs}`} 
+                        alt="Company Logo" 
+                        className="h-16 w-auto object-contain"
+                        onError={() => setLogoError(true)}
+                    />
+                 </div>
+             ) : (
+                 <div className="w-20 h-20 bg-brand-500 rounded-2xl mx-auto flex items-center justify-center mb-6 shadow-lg shadow-brand-500/20">
+                     <span className="text-4xl font-bold text-white">CC</span>
+                 </div>
+             )}
+             
+             <h1 className="text-3xl font-bold text-white tracking-tight">制宜電測校正系統</h1>
+             <p className="text-slate-400 text-sm mt-2 font-medium">請選擇您的登入身分</p>
          </div>
 
          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-lg">

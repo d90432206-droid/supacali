@@ -14,6 +14,8 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout }) => {
   const [envType, setEnvType] = useState<'supabase' | 'mock'>('mock');
   const [logoError, setLogoError] = useState(false);
+  // 使用 state 儲存 timestamp，確保元件重新渲染時不會一直重新抓取圖片導致閃爍
+  const [imgTs] = useState(Date.now());
 
   useEffect(() => {
     setEnvType(mockGasService.getEnvironmentType());
@@ -62,22 +64,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, on
         {/* Logo Image with Fallback */}
         <div className="flex-shrink-0">
             {!logoError ? (
-                <div className="bg-white p-1 rounded-lg shadow-sm">
+                <div className="bg-white p-1.5 rounded-lg shadow-sm">
                     <img 
-                        src={`/logo.png?t=${Date.now()}`} 
+                        src={`/logo.png?t=${imgTs}`} 
                         alt="Logo" 
                         className="h-8 w-auto object-contain"
                         onError={(e) => {
-                            // Only set error if it really fails to load
-                            const target = e.target as HTMLImageElement;
-                            if (target.naturalWidth === 0) {
-                                setLogoError(true);
-                            }
+                            setLogoError(true);
                         }}
                     />
                 </div>
             ) : (
-                <div className="bg-brand-500 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-brand-500/20">
+                <div className="bg-brand-500 w-12 h-12 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-brand-500/20 text-lg">
                     CC
                 </div>
             )}
