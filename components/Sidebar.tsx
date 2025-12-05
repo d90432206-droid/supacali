@@ -62,12 +62,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, on
         {/* Logo Image with Fallback */}
         <div className="flex-shrink-0">
             {!logoError ? (
-                <img 
-                    src="/logo.png" 
-                    alt="Logo" 
-                    className="h-10 w-auto object-contain"
-                    onError={() => setLogoError(true)}
-                />
+                <div className="bg-white p-1 rounded-lg shadow-sm">
+                    <img 
+                        src={`/logo.png?t=${Date.now()}`} 
+                        alt="Logo" 
+                        className="h-8 w-auto object-contain"
+                        onError={(e) => {
+                            // Only set error if it really fails to load
+                            const target = e.target as HTMLImageElement;
+                            if (target.naturalWidth === 0) {
+                                setLogoError(true);
+                            }
+                        }}
+                    />
+                </div>
             ) : (
                 <div className="bg-brand-500 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-brand-500/20">
                     CC
