@@ -13,7 +13,6 @@ class SupabaseService {
 
   private init() {
     // Defensive check: Ensure URL looks valid before attempting createClient
-    // This prevents the "URL is required" or "Invalid URL" error from crashing the entire app on load
     if (CONFIG.SUPABASE.URL && CONFIG.SUPABASE.KEY && CONFIG.SUPABASE.URL.startsWith('http')) {
       try {
         this.supabase = createClient(CONFIG.SUPABASE.URL, CONFIG.SUPABASE.KEY);
@@ -54,6 +53,11 @@ class SupabaseService {
 
             if (error) {
                 console.error(`Error fetching ${tableName}:`, error);
+                // If table doesn't exist, return empty array instead of crashing
+                if (error.code === '42P01') { 
+                    console.warn(`Table ${tableName} does not exist. Please run SQL migration.`);
+                    return [];
+                }
                 break;
             }
 
@@ -61,7 +65,6 @@ class SupabaseService {
                 allData = [...allData, ...data];
             }
 
-            // Break if we've fetched all records or if returned data is smaller than page size
             if (!data || data.length < size) break;
             page++;
         }
@@ -76,7 +79,10 @@ class SupabaseService {
   // --- Auth Service ---
 
   async verifyAdminPassword(password: string): Promise<boolean> {
-      if (!this.isConnected || !this.supabase) return password === '0000'; // Mock fallback
+      const inputPwd = password.trim();
+      
+      // If mock mode, simply check default
+      if (!this.isConnected || !this.supabase) return inputPwd === '0000';
 
       try {
         const { data, error } = await this.supabase
@@ -85,11 +91,25 @@ class SupabaseService {
             .eq('key', CONFIG.CONSTANTS.ADMIN_PWD_KEY)
             .single();
 
-        if (error || !data) return false;
-        return data.value === password;
+        // FAILSAFE: If the settings table doesn't exist yet or the row is missing (PGRST116),
+        // we fallback to the default '0000' to allow the user to login and setup the system.
+        if (error) {
+            console.warn('Admin password lookup failed (using fallback):', error.message);
+            // Check if error is "Row not found" or "Table not found"
+            if (error.code === 'PGRST116' || error.code === '42P01') {
+                return inputPwd === '0000';
+            }
+            return false;
+        }
+
+        if (!data) return false;
+        
+        // Strict comparison with trim
+        return data.value.trim() === inputPwd;
       } catch (e) {
-        console.error(e);
-        return false;
+        console.error("Auth Exception:", e);
+        // Fallback for critical failure to avoid lockout during setup
+        return inputPwd === '0000'; 
       }
   }
 
@@ -104,9 +124,8 @@ class SupabaseService {
             .eq('key', key)
             .single();
 
-        // If no password set for user, we deny access to enforce security
         if (error || !data) return false; 
-        return data.value === password;
+        return data.value.trim() === password.trim();
       } catch (e) {
         console.error(e);
         return false;
@@ -118,7 +137,7 @@ class SupabaseService {
       const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
       await this.supabase
         .from(CONFIG.TABLES.USER_SETTINGS)
-        .upsert({ key, value: password });
+        .upsert({ key, value: password.trim() });
   }
 
   async changeAdminPassword(oldPwd: string, newPwd: string): Promise<boolean> {
@@ -128,7 +147,7 @@ class SupabaseService {
       if (this.isConnected && this.supabase) {
           await this.supabase
             .from(CONFIG.TABLES.ADMIN_SETTINGS)
-            .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd });
+            .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
       }
       return true;
   }

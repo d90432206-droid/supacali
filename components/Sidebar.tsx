@@ -13,6 +13,7 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, onLogout }) => {
   const [envType, setEnvType] = useState<'supabase' | 'mock'>('mock');
+  const [logoError, setLogoError] = useState(false);
 
   useEffect(() => {
     setEnvType(mockGasService.getEnvironmentType());
@@ -58,17 +59,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, on
   return (
     <div className="w-full h-full bg-slate-900 flex flex-col p-4 text-slate-100">
       <div className="flex items-center gap-3 px-2 mb-8 mt-4">
-        {/* Logo Image Replacement */}
+        {/* Logo Image with Fallback */}
         <div className="flex-shrink-0">
-            <img 
-                src="/logo.png" 
-                alt="Logo" 
-                className="h-10 w-auto object-contain"
-                onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    e.currentTarget.parentElement!.innerHTML = '<div class="bg-brand-500 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white">CC</div>';
-                }}
-            />
+            {!logoError ? (
+                <img 
+                    src="/logo.png" 
+                    alt="Logo" 
+                    className="h-10 w-auto object-contain"
+                    onError={() => setLogoError(true)}
+                />
+            ) : (
+                <div className="bg-brand-500 w-10 h-10 rounded-lg flex items-center justify-center font-bold text-white shadow-lg shadow-brand-500/20">
+                    CC
+                </div>
+            )}
         </div>
         <div>
           <h1 className="font-bold text-white text-sm leading-tight tracking-tight">制宜電測校正管理系統</h1>
