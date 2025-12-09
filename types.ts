@@ -37,7 +37,7 @@ export interface Technician {
 export interface Product {
   id: string;
   name: string; // 庫存品項名稱 (校正服務項目)
-  specification: string; 
+  specification: string;
   category: string;
   standardPrice: number;
   lastUpdated: string;
@@ -46,29 +46,29 @@ export interface Product {
 export interface Order {
   id: string;
   orderNumber: string; // 校正訂單編號 (Header)
-  
+
   // Equipment Info (Header) - The physical object being calibrated
   equipmentNumber: string; // 設備案號
   equipmentName: string;   // 設備名稱 (New)
   customerName: string;
-  
+
   // Calibration Service Details (Line Item) - From Inventory
   productId: string;
   productName: string; // 校正品項名稱 (From Inventory)
-  productSpec: string; 
+  productSpec: string;
   category: string;
   calibrationType: CalibrationType;
-  
+
   quantity: number;
   unitPrice: number;
   discountRate: number; // (Header/Global)
-  totalAmount: number; 
-  
+  totalAmount: number;
+
   status: CalibrationStatus;
-  createDate: string; 
+  createDate: string;
   targetDate: string; // (Header)
   technicians: string[]; // (Header)
-  notes?: string; 
+  notes?: string;
   isArchived: boolean;
   resurrectReason?: string;
 }
@@ -80,7 +80,7 @@ export interface DashboardStats {
   pendingAmount: number;
 }
 
-export type ViewState = 'dashboard' | 'create-order' | 'order-list' | 'inventory' | 'settings';
+export type ViewState = 'dashboard' | 'create-order' | 'order-list' | 'inventory' | 'settings' | 'tools';
 
 export interface OrderTemplate extends Partial<Order> {
   isCopy?: boolean;
