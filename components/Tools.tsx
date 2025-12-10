@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap, ThermometerSun, TrendingUp } from 'lucide-react';
+import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap, ThermometerSun, TrendingUp, Flame } from 'lucide-react';
 
 export const Tools: React.FC = () => {
   // --- State for Tool 1: Temp Resistance Compensation (Hot -> Std) ---
@@ -66,22 +66,22 @@ export const Tools: React.FC = () => {
           <Calculator size={24} />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-slate-800">實用工具箱 (Utilities)</h2>
-          <p className="text-sm text-slate-500">工程師常用計算工具與輔助程式</p>
+          <h2 className="text-xl font-bold text-slate-800">工程計算工具箱 (Utilities)</h2>
+          <p className="text-sm text-slate-500">導體溫度補償與電阻預測換算</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Tool Card 1: Temperature Compensation (Hot -> Std) */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
           <div className="bg-slate-50 border-b border-slate-100 p-4 flex justify-between items-center">
             <div className="flex items-center gap-2 font-bold text-slate-700">
               <Thermometer size={18} className="text-brand-600" />
-              導體溫度補償 (推論絕對溫度)
+              溫度補償校正 (回推標準值)
             </div>
             <div className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-bold">
-              測量回推
+              測量 → 標準
             </div>
           </div>
 
@@ -195,14 +195,14 @@ export const Tools: React.FC = () => {
         </div>
 
         {/* Tool Card 2: Resistance Prediction (Std -> Target) */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
-          <div className="bg-orange-50/50 border-b border-orange-100 p-4 flex justify-between items-center">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
+          <div className="bg-red-50 border-b border-red-100 p-4 flex justify-between items-center">
             <div className="flex items-center gap-2 font-bold text-slate-700">
-              <ThermometerSun size={18} className="text-orange-500" />
-              溫度變化電阻預估
+              <Flame size={18} className="text-red-500" />
+              高溫電阻預測 (環境變化模擬)
             </div>
-            <div className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">
-              環境預測
+            <div className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold">
+              標準 → 高溫
             </div>
           </div>
 
@@ -211,7 +211,7 @@ export const Tools: React.FC = () => {
             <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
               <button
                 onClick={() => setMaterialRev('copper')}
-                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${materialRev === 'copper' ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${materialRev === 'copper' ? 'bg-white text-red-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
               >
                 銅 (Copper)
               </button>
@@ -233,7 +233,7 @@ export const Tools: React.FC = () => {
                     type="number"
                     value={rBase}
                     onChange={(e) => setRBase(e.target.value)}
-                    className="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                    className="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-red-500 outline-none font-mono"
                     placeholder="0.00"
                   />
                   <span className="absolute right-3 top-2 text-slate-400 text-sm">Ω</span>
@@ -249,21 +249,21 @@ export const Tools: React.FC = () => {
                       type="number"
                       value={tBase}
                       onChange={(e) => setTBase(e.target.value)}
-                      className="w-full px-2 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono text-center text-sm"
+                      className="w-full px-2 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-red-500 outline-none font-mono text-center text-sm"
                     />
                   </div>
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-bold text-orange-600 mb-1">
-                    目標溫度
+                  <label className="block text-xs font-bold text-red-600 mb-1">
+                    預估高溫
                   </label>
                   <div className="relative">
                     <input
                       type="number"
                       value={tTarget}
                       onChange={(e) => setTTarget(e.target.value)}
-                      className="w-full px-2 py-2 border border-orange-300 bg-orange-50 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono text-center text-sm font-bold text-orange-800"
-                      placeholder="75"
+                      className="w-full px-2 py-2 border border-red-300 bg-red-50 rounded-md focus:ring-2 focus:ring-red-500 outline-none font-mono text-center text-sm font-bold text-red-800"
+                      placeholder="例如: 75"
                     />
                   </div>
                 </div>
@@ -281,23 +281,23 @@ export const Tools: React.FC = () => {
             </div>
 
             {/* Result Section */}
-            <div className="bg-orange-950 rounded-lg p-4 text-white relative overflow-hidden shadow-inner">
+            <div className="bg-red-950 rounded-lg p-4 text-white relative overflow-hidden shadow-inner">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <TrendingUp size={64} />
               </div>
               <div className="flex justify-between items-end relative z-10">
                 <div>
-                  <div className="text-xs text-orange-200 mb-1 flex items-center gap-1">
-                    預估目標電阻 (<span className="font-serif italic">R<sub>target</sub></span>)
+                  <div className="text-xs text-red-200 mb-1 flex items-center gap-1">
+                    預估高溫測得電阻 (<span className="font-serif italic">R<sub>hot</sub></span>)
                   </div>
-                  <div className="text-3xl font-mono font-bold text-orange-400 tracking-tight">
+                  <div className="text-3xl font-mono font-bold text-red-400 tracking-tight">
                     {resultRev !== null ? resultRev.toFixed(5) : '---'}
                     <span className="text-sm text-slate-400 ml-2 font-sans">Ω</span>
                   </div>
                 </div>
                 <button
                   onClick={handleResetRev}
-                  className="p-2 bg-orange-900 hover:bg-orange-800 rounded-full text-orange-300 hover:text-white transition-colors border border-orange-800"
+                  className="p-2 bg-red-900 hover:bg-red-800 rounded-full text-red-300 hover:text-white transition-colors border border-red-800"
                   title="重置"
                 >
                   <RotateCcw size={16} />
@@ -308,13 +308,13 @@ export const Tools: React.FC = () => {
             {/* Formula Explanation */}
             <div className="mt-auto bg-slate-50 p-3 rounded text-xs text-slate-500 space-y-2 border border-slate-100">
               <p className="font-bold flex items-center gap-1 text-slate-600">
-                <span className="w-1 h-3 bg-orange-500 rounded-full"></span>
+                <span className="w-1 h-3 bg-red-500 rounded-full"></span>
                 公式原理 (溫度係數預估):
               </p>
               <div className="font-mono bg-white p-2 rounded border border-slate-200 text-center text-slate-700 my-2 shadow-sm text-[11px] sm:text-xs">
-                R<sub>target</sub> = R<sub>std</sub> ×
+                R<sub>hot</sub> = R<sub>std</sub> ×
                 <span className="inline-block mx-1 align-middle text-center leading-tight">
-                  <span className="block border-b border-slate-300 pb-0.5">T<sub>target</sub> + {CONSTANTS[materialRev]}</span>
+                  <span className="block border-b border-slate-300 pb-0.5">T<sub>hot</sub> + {CONSTANTS[materialRev]}</span>
                   <span className="block pt-0.5">{tBase} + {CONSTANTS[materialRev]}</span>
                 </span>
               </div>

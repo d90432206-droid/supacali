@@ -52,6 +52,13 @@ class SupabaseService {
     return this.isConnected ? 'supabase' : 'mock';
   }
 
+  private switchToMock() {
+    if (this.isConnected) {
+      console.warn('⚠️ Supabase operation failed. Automatically switching to Mock Mode to preserve functionality.');
+      this.isConnected = false;
+    }
+  }
+
   // --- Core: Recursive Fetch for > 1000 rows ---
   private async fetchAllData(tableName: string, orderByCol: string = 'id', ascending: boolean = true): Promise<any[]> {
     if (!this.isConnected || !this.supabase) {
@@ -81,7 +88,11 @@ class SupabaseService {
 
         if (error) {
           console.error(`Error fetching ${tableName}:`, error);
-          if (error.code === '42P01') return [];
+          if (error.code === '42P01') {
+            // Table doesn't exist, switch to mock immediately
+            this.switchToMock();
+            return this.fetchAllData(tableName, orderByCol, ascending);
+          }
           break;
         }
 
@@ -93,8 +104,9 @@ class SupabaseService {
         page++;
       }
     } catch (e) {
-      console.error("Critical Fetch Error:", e);
-      return [];
+      console.error("Critical Fetch Error, switching to mock:", e);
+      this.switchToMock();
+      return this.fetchAllData(tableName, orderByCol, ascending);
     }
 
     return allData;
@@ -115,6 +127,8 @@ class SupabaseService {
         .single();
 
       if (error) {
+        // Only switch to mock if it's a connection error, not just 'row not found'
+        if (error.code !== 'PGRST116') this.switchToMock();
         if (error.code === 'PGRST116' || error.code === '42P01') return inputPwd === '0000';
         return false;
       }
@@ -145,11 +159,16 @@ class SupabaseService {
   }
 
   async setEngineerPassword(name: string, password: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
-    const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
-    await this.supabase
-      .from(CONFIG.TABLES.USER_SETTINGS)
-      .upsert({ key, value: password.trim() });
+    if (this.isConnected && this.supabase) {
+      try {
+        const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
+        await this.supabase
+          .from(CONFIG.TABLES.USER_SETTINGS)
+          .upsert({ key, value: password.trim() });
+      } catch (e) {
+        this.switchToMock();
+      }
+    }
   }
 
   async changeAdminPassword(oldPwd: string, newPwd: string): Promise<boolean> {
@@ -157,9 +176,13 @@ class SupabaseService {
     if (!isValid) return false;
 
     if (this.isConnected && this.supabase) {
-      await this.supabase
-        .from(CONFIG.TABLES.ADMIN_SETTINGS)
-        .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
+      try {
+        await this.supabase
+          .from(CONFIG.TABLES.ADMIN_SETTINGS)
+          .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
+      } catch (e) {
+        this.switchToMock();
+      }
     }
     return true;
   }
@@ -219,18 +242,23 @@ class SupabaseService {
       last_updated: new Date().toISOString()
     };
 
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.PRODUCTS].push(newItem);
-      return this.mapProductFromDB(newItem);
+    if (this.isConnected && this.supabase) {
+      try {
+        const { data, error } = await this.supabase
+          .from(CONFIG.TABLES.PRODUCTS)
+          .insert(newItem)
+          .select()
+          .single();
+        if (error) throw error;
+        return this.mapProductFromDB(data);
+      } catch (e) {
+        this.switchToMock();
+      }
     }
 
-    const { data, error } = await this.supabase
-      .from(CONFIG.TABLES.PRODUCTS)
-      .insert(newItem)
-      .select()
-      .single();
-    if (error) throw error;
-    return this.mapProductFromDB(data);
+    // Mock Fallback
+    this.mockStore[CONFIG.TABLES.PRODUCTS].push(newItem);
+    return this.mapProductFromDB(newItem);
   }
 
   async getCustomers(): Promise<Customer[]> {
@@ -241,14 +269,19 @@ class SupabaseService {
   async addCustomer(name: string): Promise<Customer> {
     const newItem = { id: 'cust-' + Date.now(), name };
 
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.CUSTOMERS].push(newItem);
-      return newItem as Customer;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert(newItem).select().single();
+        if (error) throw error;
+        return data as Customer;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
 
-    const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert(newItem).select().single();
-    if (error) throw error;
-    return data as Customer;
+    // Mock Fallback
+    this.mockStore[CONFIG.TABLES.CUSTOMERS].push(newItem);
+    return newItem as Customer;
   }
 
   async getTechnicians(): Promise<Technician[]> {
@@ -259,22 +292,32 @@ class SupabaseService {
   async addTechnician(name: string): Promise<Technician> {
     const newItem = { id: 'tech-' + Date.now(), name };
 
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.TECHNICIANS].push(newItem);
-      return newItem as Technician;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert(newItem).select().single();
+        if (error) throw error;
+        return data as Technician;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
 
-    const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert(newItem).select().single();
-    if (error) throw error;
-    return data as Technician;
+    this.mockStore[CONFIG.TABLES.TECHNICIANS].push(newItem);
+    return newItem as Technician;
   }
 
   async removeTechnician(id: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.TECHNICIANS] = this.mockStore[CONFIG.TABLES.TECHNICIANS].filter(t => t.id !== id);
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).delete().eq('id', id);
+        if (error) throw error;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
-    await this.supabase.from(CONFIG.TABLES.TECHNICIANS).delete().eq('id', id);
+
+    // Mock Logic
+    this.mockStore[CONFIG.TABLES.TECHNICIANS] = this.mockStore[CONFIG.TABLES.TECHNICIANS].filter(t => t.id !== id);
   }
 
   async getOrders(): Promise<Order[]> {
@@ -283,14 +326,22 @@ class SupabaseService {
   }
 
   async checkOrderExists(orderNumber: string): Promise<boolean> {
-    if (!this.isConnected || !this.supabase) {
-      return this.mockStore[CONFIG.TABLES.ORDERS].some(o => o.order_number === orderNumber);
+    if (this.isConnected && this.supabase) {
+      try {
+        const { count, error } = await this.supabase
+          .from(CONFIG.TABLES.ORDERS)
+          .select('*', { count: 'exact', head: true })
+          .eq('order_number', orderNumber);
+
+        if (error) throw error;
+        return (count || 0) > 0;
+      } catch (e) {
+        console.error('Check order failed, switching to mock', e);
+        this.switchToMock();
+        // Fallback to mock check below
+      }
     }
-    const { count } = await this.supabase
-      .from(CONFIG.TABLES.ORDERS)
-      .select('*', { count: 'exact', head: true })
-      .eq('order_number', orderNumber);
-    return (count || 0) > 0;
+    return this.mockStore[CONFIG.TABLES.ORDERS].some(o => o.order_number === orderNumber);
   }
 
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
@@ -317,96 +368,132 @@ class SupabaseService {
       is_archived: false
     }));
 
-    if (!this.isConnected || !this.supabase) {
-      // Mock Insert
-      this.mockStore[CONFIG.TABLES.ORDERS].push(...dbPayloads);
-      console.log('Mock Orders Created:', dbPayloads.length);
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        // Clean payloads for Supabase (remove ID if we want auto-inc, but here we enforce UUIDs maybe?)
+        // We'll try inserting with IDs first as they are strings.
+        const supabasePayloads = dbPayloads.map(({ ...rest }) => rest);
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
+        if (error) throw error;
+        return; // Success
+      } catch (e) {
+        console.error('Create orders failed, switching to mock', e);
+        this.switchToMock();
+        // Fallback to mock insert below
+      }
     }
 
-    // Supabase Insert - Remove ID to let DB generate it if using UUID, or keep it if using text
-    // Here we'll let Supabase handle IDs if possible, but map defines ID.
-    // Clean payloads for Supabase (remove ID if auto-inc)
-    const supabasePayloads = dbPayloads.map(({ id, ...rest }) => rest);
-
-    const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
-    if (error) throw error;
+    // Mock Insert
+    this.mockStore[CONFIG.TABLES.ORDERS].push(...dbPayloads);
+    console.log('Mock Orders Created:', dbPayloads.length);
   }
 
   async updateOrderStatusByNo(orderNumber: string, newStatus: CalibrationStatus): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      const orders = this.mockStore[CONFIG.TABLES.ORDERS];
-      orders.forEach(o => {
-        if (o.order_number === orderNumber) {
-          o.status = newStatus;
-          if (newStatus === CalibrationStatus.COMPLETED) o.is_archived = true;
+    if (this.isConnected && this.supabase) {
+      try {
+        const updates: any = { status: newStatus };
+        if (newStatus === CalibrationStatus.COMPLETED) {
+          updates.is_archived = true;
         }
-      });
-      return;
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update(updates).eq('order_number', orderNumber);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
 
-    const updates: any = { status: newStatus };
-    if (newStatus === CalibrationStatus.COMPLETED) {
-      updates.is_archived = true;
-    }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).update(updates).eq('order_number', orderNumber);
+    const orders = this.mockStore[CONFIG.TABLES.ORDERS];
+    orders.forEach(o => {
+      if (o.order_number === orderNumber) {
+        o.status = newStatus;
+        if (newStatus === CalibrationStatus.COMPLETED) o.is_archived = true;
+      }
+    });
   }
 
   async updateOrderNotesByNo(orderNumber: string, notes: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.notes = notes);
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update({ notes }).eq('order_number', orderNumber);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).update({ notes }).eq('order_number', orderNumber);
+    this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.notes = notes);
   }
 
   async updateOrderTargetDateByNo(orderNumber: string, newDate: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.target_date = new Date(newDate).toISOString());
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update({ target_date: new Date(newDate).toISOString() }).eq('order_number', orderNumber);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).update({ target_date: new Date(newDate).toISOString() }).eq('order_number', orderNumber);
+    this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.target_date = new Date(newDate).toISOString());
   }
 
   async updateOrderItem(id: string, updates: { quantity: number; unitPrice: number; totalAmount: number }): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      const item = this.mockStore[CONFIG.TABLES.ORDERS].find(o => o.id === id);
-      if (item) {
-        item.quantity = updates.quantity;
-        item.unit_price = updates.unitPrice;
-        item.total_amount = updates.totalAmount;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update({
+          quantity: updates.quantity,
+          unit_price: updates.unitPrice,
+          total_amount: updates.totalAmount
+        }).eq('id', id);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
       }
-      return;
     }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).update({
-      quantity: updates.quantity,
-      unit_price: updates.unitPrice,
-      total_amount: updates.totalAmount
-    }).eq('id', id);
+
+    const item = this.mockStore[CONFIG.TABLES.ORDERS].find(o => o.id === id);
+    if (item) {
+      item.quantity = updates.quantity;
+      item.unit_price = updates.unitPrice;
+      item.total_amount = updates.totalAmount;
+    }
   }
 
   async restoreOrderByNo(orderNumber: string, reason: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => {
-        o.is_archived = false;
-        o.status = CalibrationStatus.PENDING;
-        o.resurrect_reason = reason;
-      });
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update({
+          is_archived: false,
+          status: CalibrationStatus.PENDING,
+          resurrect_reason: reason
+        }).eq('order_number', orderNumber);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).update({
-      is_archived: false,
-      status: CalibrationStatus.PENDING,
-      resurrect_reason: reason
-    }).eq('order_number', orderNumber);
+
+    this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => {
+      o.is_archived = false;
+      o.status = CalibrationStatus.PENDING;
+      o.resurrect_reason = reason;
+    });
   }
 
   async deleteOrderByNo(orderNumber: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) {
-      this.mockStore[CONFIG.TABLES.ORDERS] = this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number !== orderNumber);
-      return;
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).delete().eq('order_number', orderNumber);
+        if (error) throw error;
+        return;
+      } catch (e) {
+        this.switchToMock();
+      }
     }
-    await this.supabase.from(CONFIG.TABLES.ORDERS).delete().eq('order_number', orderNumber);
+    this.mockStore[CONFIG.TABLES.ORDERS] = this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number !== orderNumber);
   }
 
   async checkAdminPassword(input: string): Promise<boolean> {
