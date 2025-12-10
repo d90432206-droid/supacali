@@ -163,7 +163,7 @@ const EditableOrderRow: React.FC<{
                 {isEditable && (
                     <button
                         onClick={() => setIsEditing(true)}
-                        className="p-1 text-slate-300 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors opacity-0 group-hover/row:opacity-100"
+                        className="p-1 text-slate-300 hover:text-brand-600 hover:bg-brand-50 rounded transition-colors"
                         title="編輯明細"
                     >
                         <Edit3 size={14} />

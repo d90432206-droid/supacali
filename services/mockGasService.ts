@@ -7,6 +7,26 @@ class SupabaseService {
   private supabase: SupabaseClient | null = null;
   private isConnected: boolean = false;
 
+  // In-Memory Mock Store
+  private mockStore: Record<string, any[]> = {
+    [CONFIG.TABLES.ORDERS]: [],
+    [CONFIG.TABLES.PRODUCTS]: [
+      { id: 'p1', name: '數位卡尺', specification: '0-150mm', category: '長度', standard_price: 500, last_updated: new Date().toISOString() },
+      { id: 'p2', name: '壓力錶', specification: '0-10kg/cm2', category: '壓力', standard_price: 1200, last_updated: new Date().toISOString() },
+      { id: 'p3', name: '三用電表', specification: 'Fluke 179', category: '電量', standard_price: 2500, last_updated: new Date().toISOString() }
+    ],
+    [CONFIG.TABLES.CUSTOMERS]: [
+      { id: 'c1', name: '台積電', contact_person: '張經理', phone: '0912345678' },
+      { id: 'c2', name: '聯發科', contact_person: '王工程師', phone: '0987654321' }
+    ],
+    [CONFIG.TABLES.TECHNICIANS]: [
+      { id: 't1', name: '陳小明' },
+      { id: 't2', name: '林大華' }
+    ],
+    [CONFIG.TABLES.ADMIN_SETTINGS]: [],
+    [CONFIG.TABLES.USER_SETTINGS]: []
+  };
+
   constructor() {
     this.init();
   }
@@ -23,7 +43,7 @@ class SupabaseService {
         this.isConnected = false;
       }
     } else {
-      console.warn('⚠️ Missing or Invalid Supabase Config, falling back to Mock mode (limited functionality)');
+      console.warn('⚠️ Missing or Invalid Supabase Config, falling back to Mock mode (Memory Only)');
       this.isConnected = false;
     }
   }
@@ -34,7 +54,15 @@ class SupabaseService {
 
   // --- Core: Recursive Fetch for > 1000 rows ---
   private async fetchAllData(tableName: string, orderByCol: string = 'id', ascending: boolean = true): Promise<any[]> {
-    if (!this.isConnected || !this.supabase) return [];
+    if (!this.isConnected || !this.supabase) {
+      // Mock Implementation
+      const data = this.mockStore[tableName] || [];
+      return [...data].sort((a, b) => {
+        if (a[orderByCol] < b[orderByCol]) return ascending ? -1 : 1;
+        if (a[orderByCol] > b[orderByCol]) return ascending ? 1 : -1;
+        return 0;
+      });
+    }
 
     let allData: any[] = [];
     let page = 0;
@@ -53,11 +81,7 @@ class SupabaseService {
 
         if (error) {
           console.error(`Error fetching ${tableName}:`, error);
-          // If table doesn't exist, return empty array instead of crashing
-          if (error.code === '42P01') {
-            console.warn(`Table ${tableName} does not exist. Please run SQL migration.`);
-            return [];
-          }
+          if (error.code === '42P01') return [];
           break;
         }
 
@@ -81,7 +105,6 @@ class SupabaseService {
   async verifyAdminPassword(password: string): Promise<boolean> {
     const inputPwd = password.trim();
 
-    // If mock mode, simply check default
     if (!this.isConnected || !this.supabase) return inputPwd === '0000';
 
     try {
@@ -91,30 +114,20 @@ class SupabaseService {
         .eq('key', CONFIG.CONSTANTS.ADMIN_PWD_KEY)
         .single();
 
-      // FAILSAFE: If the settings table doesn't exist yet or the row is missing (PGRST116),
-      // we fallback to the default '0000' to allow the user to login and setup the system.
       if (error) {
-        console.warn('Admin password lookup failed (using fallback):', error.message);
-        // Check if error is "Row not found" or "Table not found"
-        if (error.code === 'PGRST116' || error.code === '42P01') {
-          return inputPwd === '0000';
-        }
+        if (error.code === 'PGRST116' || error.code === '42P01') return inputPwd === '0000';
         return false;
       }
 
       if (!data) return false;
-
-      // Strict comparison with trim
       return data.value.trim() === inputPwd;
     } catch (e) {
-      console.error("Auth Exception:", e);
-      // Fallback for critical failure to avoid lockout during setup
       return inputPwd === '0000';
     }
   }
 
   async verifyEngineerPassword(name: string, password: string): Promise<boolean> {
-    if (!this.isConnected || !this.supabase) return true; // Mock allow if no DB
+    if (!this.isConnected || !this.supabase) return true; // Mock allow
 
     try {
       const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
@@ -127,7 +140,6 @@ class SupabaseService {
       if (error || !data) return false;
       return data.value.trim() === password.trim();
     } catch (e) {
-      console.error(e);
       return false;
     }
   }
@@ -198,17 +210,23 @@ class SupabaseService {
   }
 
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
-    if (!this.isConnected || !this.supabase) throw new Error("No DB");
+    const newItem = {
+      id: 'prod-' + Date.now(),
+      name: product.name,
+      specification: product.specification,
+      category: product.category,
+      standard_price: product.standardPrice,
+      last_updated: new Date().toISOString()
+    };
+
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.PRODUCTS].push(newItem);
+      return this.mapProductFromDB(newItem);
+    }
 
     const { data, error } = await this.supabase
       .from(CONFIG.TABLES.PRODUCTS)
-      .insert({
-        name: product.name,
-        specification: product.specification,
-        category: product.category,
-        standard_price: product.standardPrice,
-        last_updated: new Date().toISOString()
-      })
+      .insert(newItem)
       .select()
       .single();
     if (error) throw error;
@@ -221,8 +239,14 @@ class SupabaseService {
   }
 
   async addCustomer(name: string): Promise<Customer> {
-    if (!this.isConnected || !this.supabase) throw new Error("No DB");
-    const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert({ name }).select().single();
+    const newItem = { id: 'cust-' + Date.now(), name };
+
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.CUSTOMERS].push(newItem);
+      return newItem as Customer;
+    }
+
+    const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert(newItem).select().single();
     if (error) throw error;
     return data as Customer;
   }
@@ -233,25 +257,35 @@ class SupabaseService {
   }
 
   async addTechnician(name: string): Promise<Technician> {
-    if (!this.isConnected || !this.supabase) throw new Error("No DB");
-    const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert({ name }).select().single();
+    const newItem = { id: 'tech-' + Date.now(), name };
+
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.TECHNICIANS].push(newItem);
+      return newItem as Technician;
+    }
+
+    const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert(newItem).select().single();
     if (error) throw error;
     return data as Technician;
   }
 
   async removeTechnician(id: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.TECHNICIANS] = this.mockStore[CONFIG.TABLES.TECHNICIANS].filter(t => t.id !== id);
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.TECHNICIANS).delete().eq('id', id);
   }
 
   async getOrders(): Promise<Order[]> {
-    // Orders sorted by create_date desc usually
     const data = await this.fetchAllData(CONFIG.TABLES.ORDERS, 'create_date', false);
     return data.map(this.mapOrderFromDB);
   }
 
   async checkOrderExists(orderNumber: string): Promise<boolean> {
-    if (!this.isConnected || !this.supabase) return false;
+    if (!this.isConnected || !this.supabase) {
+      return this.mockStore[CONFIG.TABLES.ORDERS].some(o => o.order_number === orderNumber);
+    }
     const { count } = await this.supabase
       .from(CONFIG.TABLES.ORDERS)
       .select('*', { count: 'exact', head: true })
@@ -260,10 +294,8 @@ class SupabaseService {
   }
 
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) throw new Error("No DB Connection");
-
-    // Calculate total amount explicitly to save it
-    const dbPayloads = ordersData.map(o => ({
+    const dbPayloads = ordersData.map((o, index) => ({
+      id: `ord-${Date.now()}-${index}`,
       order_number: manualOrderNumber,
       equipment_number: o.equipmentNumber,
       equipment_name: o.equipmentName,
@@ -276,7 +308,7 @@ class SupabaseService {
       quantity: o.quantity,
       unit_price: o.unitPrice,
       discount_rate: o.discountRate,
-      total_amount: Math.round(o.unitPrice * o.quantity * (o.discountRate / 100)), // Save calculated total
+      total_amount: Math.round(o.unitPrice * o.quantity * (o.discountRate / 100)),
       status: o.status,
       create_date: new Date().toISOString(),
       target_date: o.targetDate,
@@ -285,12 +317,34 @@ class SupabaseService {
       is_archived: false
     }));
 
-    const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(dbPayloads);
+    if (!this.isConnected || !this.supabase) {
+      // Mock Insert
+      this.mockStore[CONFIG.TABLES.ORDERS].push(...dbPayloads);
+      console.log('Mock Orders Created:', dbPayloads.length);
+      return;
+    }
+
+    // Supabase Insert - Remove ID to let DB generate it if using UUID, or keep it if using text
+    // Here we'll let Supabase handle IDs if possible, but map defines ID.
+    // Clean payloads for Supabase (remove ID if auto-inc)
+    const supabasePayloads = dbPayloads.map(({ id, ...rest }) => rest);
+
+    const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
     if (error) throw error;
   }
 
   async updateOrderStatusByNo(orderNumber: string, newStatus: CalibrationStatus): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      const orders = this.mockStore[CONFIG.TABLES.ORDERS];
+      orders.forEach(o => {
+        if (o.order_number === orderNumber) {
+          o.status = newStatus;
+          if (newStatus === CalibrationStatus.COMPLETED) o.is_archived = true;
+        }
+      });
+      return;
+    }
+
     const updates: any = { status: newStatus };
     if (newStatus === CalibrationStatus.COMPLETED) {
       updates.is_archived = true;
@@ -299,17 +353,31 @@ class SupabaseService {
   }
 
   async updateOrderNotesByNo(orderNumber: string, notes: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.notes = notes);
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.ORDERS).update({ notes }).eq('order_number', orderNumber);
   }
 
   async updateOrderTargetDateByNo(orderNumber: string, newDate: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.target_date = new Date(newDate).toISOString());
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.ORDERS).update({ target_date: new Date(newDate).toISOString() }).eq('order_number', orderNumber);
   }
 
   async updateOrderItem(id: string, updates: { quantity: number; unitPrice: number; totalAmount: number }): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      const item = this.mockStore[CONFIG.TABLES.ORDERS].find(o => o.id === id);
+      if (item) {
+        item.quantity = updates.quantity;
+        item.unit_price = updates.unitPrice;
+        item.total_amount = updates.totalAmount;
+      }
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.ORDERS).update({
       quantity: updates.quantity,
       unit_price: updates.unitPrice,
@@ -318,7 +386,14 @@ class SupabaseService {
   }
 
   async restoreOrderByNo(orderNumber: string, reason: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => {
+        o.is_archived = false;
+        o.status = CalibrationStatus.PENDING;
+        o.resurrect_reason = reason;
+      });
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.ORDERS).update({
       is_archived: false,
       status: CalibrationStatus.PENDING,
@@ -327,11 +402,13 @@ class SupabaseService {
   }
 
   async deleteOrderByNo(orderNumber: string): Promise<void> {
-    if (!this.isConnected || !this.supabase) return;
+    if (!this.isConnected || !this.supabase) {
+      this.mockStore[CONFIG.TABLES.ORDERS] = this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number !== orderNumber);
+      return;
+    }
     await this.supabase.from(CONFIG.TABLES.ORDERS).delete().eq('order_number', orderNumber);
   }
 
-  // Compatibility shim for existing components using checkAdminPassword
   async checkAdminPassword(input: string): Promise<boolean> {
     return this.verifyAdminPassword(input);
   }
