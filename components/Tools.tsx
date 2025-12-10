@@ -1,13 +1,19 @@
 
 import React, { useState, useMemo } from 'react';
-import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap } from 'lucide-react';
+import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap, ThermometerSun, TrendingUp } from 'lucide-react';
 
 export const Tools: React.FC = () => {
-  // --- State for Temp Resistance Calculator ---
+  // --- State for Tool 1: Temp Resistance Compensation (Hot -> Std) ---
   const [material, setMaterial] = useState<'copper' | 'aluminum'>('copper');
   const [rHot, setRHot] = useState<string>(''); // Measured Resistance
   const [tHot, setTHot] = useState<string>(''); // Measured Temp
   const [tStd, setTStd] = useState<string>('20'); // Standard Temp (Target)
+
+  // --- State for Tool 2: Resistance Prediction (Std -> Hot/Target) ---
+  const [materialRev, setMaterialRev] = useState<'copper' | 'aluminum'>('copper');
+  const [rBase, setRBase] = useState<string>(''); // Standard Resistance
+  const [tBase, setTBase] = useState<string>('20'); // Standard Temp
+  const [tTarget, setTTarget] = useState<string>(''); // Target/Env Temp
 
   // Constants
   const CONSTANTS = {
@@ -15,7 +21,7 @@ export const Tools: React.FC = () => {
     aluminum: 228
   };
 
-  // Calculation Logic
+  // Calculation Logic 1: Hot -> Std
   const result = useMemo(() => {
     const r = parseFloat(rHot);
     const t = parseFloat(tHot);
@@ -29,13 +35,32 @@ export const Tools: React.FC = () => {
     return rStd;
   }, [rHot, tHot, tStd, material]);
 
+  // Calculation Logic 2: Std -> Target
+  const resultRev = useMemo(() => {
+    const r = parseFloat(rBase);
+    const tBaseVal = parseFloat(tBase);
+    const tTargetVal = parseFloat(tTarget);
+    const k = CONSTANTS[materialRev];
+
+    if (isNaN(r) || isNaN(tBaseVal) || isNaN(tTargetVal)) return null;
+
+    // Formula: R_target = R_std * ( (T_target + k) / (T_std + k) )
+    const rTarget = r * ((tTargetVal + k) / (tBaseVal + k));
+    return rTarget;
+  }, [rBase, tBase, tTarget, materialRev]);
+
   const handleReset = () => {
     setRHot('');
     setTHot('');
   };
 
+  const handleResetRev = () => {
+    setRBase('');
+    setTTarget('');
+  };
+
   return (
-    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+    <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-fade-in">
       <div className="flex items-center gap-3 mb-2">
         <div className="p-3 bg-brand-50 rounded-lg text-brand-600">
           <Calculator size={24} />
@@ -48,19 +73,19 @@ export const Tools: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {/* Tool Card 1: Temperature Compensation */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Tool Card 1: Temperature Compensation (Hot -> Std) */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
           <div className="bg-slate-50 border-b border-slate-100 p-4 flex justify-between items-center">
             <div className="flex items-center gap-2 font-bold text-slate-700">
               <Thermometer size={18} className="text-brand-600" />
               導體溫度補償 (推論絕對溫度)
             </div>
             <div className="text-xs bg-brand-100 text-brand-700 px-2 py-0.5 rounded font-bold">
-              電阻換算
+              測量回推
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 flex-1 flex flex-col">
             {/* Material Selector */}
             <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
               <button
@@ -121,14 +146,14 @@ export const Tools: React.FC = () => {
             </div>
 
             {/* Result Section */}
-            <div className="bg-slate-900 rounded-lg p-4 text-white relative overflow-hidden">
+            <div className="bg-slate-900 rounded-lg p-4 text-white relative overflow-hidden shadow-inner">
               <div className="absolute top-0 right-0 p-4 opacity-10">
                 <Zap size={64} />
               </div>
               <div className="flex justify-between items-end relative z-10">
                 <div>
                   <div className="text-xs text-slate-400 mb-1 flex items-center gap-1">
-                    換算後標準電阻 (<span className="font-serif italic">R<sub>{tStd}</sub></span>)
+                    換算後標準電阻 (<span className="font-serif italic">R<sub>std</sub></span>) @
                     <input
                       type="number"
                       value={tStd}
@@ -137,14 +162,14 @@ export const Tools: React.FC = () => {
                     />
                     °C
                   </div>
-                  <div className="text-3xl font-mono font-bold text-brand-400">
+                  <div className="text-3xl font-mono font-bold text-brand-400 tracking-tight">
                     {result !== null ? result.toFixed(5) : '---'}
-                    <span className="text-sm text-slate-500 ml-2">Ω</span>
+                    <span className="text-sm text-slate-500 ml-2 font-sans">Ω</span>
                   </div>
                 </div>
                 <button
                   onClick={handleReset}
-                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors"
+                  className="p-2 bg-slate-800 hover:bg-slate-700 rounded-full text-slate-400 hover:text-white transition-colors border border-slate-700"
                   title="重置"
                 >
                   <RotateCcw size={16} />
@@ -153,39 +178,151 @@ export const Tools: React.FC = () => {
             </div>
 
             {/* Formula Explanation */}
-            <div className="bg-slate-50 p-3 rounded text-xs text-slate-500 space-y-2 border border-slate-100">
-              <p className="font-bold flex items-center gap-1">
+            <div className="mt-auto bg-slate-50 p-3 rounded text-xs text-slate-500 space-y-2 border border-slate-100">
+              <p className="font-bold flex items-center gap-1 text-slate-600">
                 <span className="w-1 h-3 bg-brand-500 rounded-full"></span>
                 公式原理 (推論絕對溫度):
               </p>
-              <div className="font-mono bg-white p-2 rounded border border-slate-200 text-center text-slate-700 my-2">
-                R<sub>{tStd}</sub> = R<sub>hot</sub> ×
-                <span className="inline-block mx-1 align-middle text-center">
-                  <span className="block border-b border-slate-400 pb-0.5">{tStd} + {CONSTANTS[material]}</span>
+              <div className="font-mono bg-white p-2 rounded border border-slate-200 text-center text-slate-700 my-2 shadow-sm text-[11px] sm:text-xs">
+                R<sub>std</sub> = R<sub>hot</sub> ×
+                <span className="inline-block mx-1 align-middle text-center leading-tight">
+                  <span className="block border-b border-slate-300 pb-0.5">{tStd} + {CONSTANTS[material]}</span>
                   <span className="block pt-0.5">T<sub>hot</sub> + {CONSTANTS[material]}</span>
                 </span>
               </div>
-              <ul className="list-disc list-inside space-y-1 ml-1 text-[10px]">
-                <li>{material === 'copper' ? '銅 (Copper)' : '鋁 (Aluminum)'} 的推論絕對零度常數為 <b>{CONSTANTS[material]}</b>。</li>
-                <li>此公式常用於馬達、變壓器繞組測試，無需查表。</li>
-              </ul>
             </div>
           </div>
         </div>
 
-        {/* Placeholder for future tools */}
-        <div className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-8 text-slate-400 min-h-[300px]">
-          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-            <Plus size={32} className="text-slate-300" />
+        {/* Tool Card 2: Resistance Prediction (Std -> Target) */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-full">
+          <div className="bg-orange-50/50 border-b border-orange-100 p-4 flex justify-between items-center">
+            <div className="flex items-center gap-2 font-bold text-slate-700">
+              <ThermometerSun size={18} className="text-orange-500" />
+              溫度變化電阻預估
+            </div>
+            <div className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-bold">
+              環境預測
+            </div>
           </div>
-          <h3 className="font-bold">更多工具開發中...</h3>
-          <p className="text-sm mt-1">未來可加入 單位換算、誤差分析 等功能</p>
+
+          <div className="p-6 space-y-6 flex-1 flex flex-col">
+            {/* Material Selector */}
+            <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
+              <button
+                onClick={() => setMaterialRev('copper')}
+                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${materialRev === 'copper' ? 'bg-white text-orange-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                銅 (Copper)
+              </button>
+              <button
+                onClick={() => setMaterialRev('aluminum')}
+                className={`px-4 py-1.5 text-sm font-bold rounded-md transition-all ${materialRev === 'aluminum' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                鋁 (Aluminum)
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1">
+                  標準/初始電阻 (<span className="font-serif italic">R<sub>std</sub></span>)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={rBase}
+                    onChange={(e) => setRBase(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono"
+                    placeholder="0.00"
+                  />
+                  <span className="absolute right-3 top-2 text-slate-400 text-sm">Ω</span>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-slate-500 mb-1">
+                    標準溫度
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={tBase}
+                      onChange={(e) => setTBase(e.target.value)}
+                      className="w-full px-2 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono text-center text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-bold text-orange-600 mb-1">
+                    目標溫度
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={tTarget}
+                      onChange={(e) => setTTarget(e.target.value)}
+                      className="w-full px-2 py-2 border border-orange-300 bg-orange-50 rounded-md focus:ring-2 focus:ring-orange-500 outline-none font-mono text-center text-sm font-bold text-orange-800"
+                      placeholder="75"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Divider with Arrow */}
+            <div className="relative h-4 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200"></div>
+              </div>
+              <div className="relative bg-white px-2 text-slate-400">
+                <ArrowRight size={16} />
+              </div>
+            </div>
+
+            {/* Result Section */}
+            <div className="bg-orange-950 rounded-lg p-4 text-white relative overflow-hidden shadow-inner">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <TrendingUp size={64} />
+              </div>
+              <div className="flex justify-between items-end relative z-10">
+                <div>
+                  <div className="text-xs text-orange-200 mb-1 flex items-center gap-1">
+                    預估目標電阻 (<span className="font-serif italic">R<sub>target</sub></span>)
+                  </div>
+                  <div className="text-3xl font-mono font-bold text-orange-400 tracking-tight">
+                    {resultRev !== null ? resultRev.toFixed(5) : '---'}
+                    <span className="text-sm text-slate-400 ml-2 font-sans">Ω</span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleResetRev}
+                  className="p-2 bg-orange-900 hover:bg-orange-800 rounded-full text-orange-300 hover:text-white transition-colors border border-orange-800"
+                  title="重置"
+                >
+                  <RotateCcw size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Formula Explanation */}
+            <div className="mt-auto bg-slate-50 p-3 rounded text-xs text-slate-500 space-y-2 border border-slate-100">
+              <p className="font-bold flex items-center gap-1 text-slate-600">
+                <span className="w-1 h-3 bg-orange-500 rounded-full"></span>
+                公式原理 (溫度係數預估):
+              </p>
+              <div className="font-mono bg-white p-2 rounded border border-slate-200 text-center text-slate-700 my-2 shadow-sm text-[11px] sm:text-xs">
+                R<sub>target</sub> = R<sub>std</sub> ×
+                <span className="inline-block mx-1 align-middle text-center leading-tight">
+                  <span className="block border-b border-slate-300 pb-0.5">T<sub>target</sub> + {CONSTANTS[materialRev]}</span>
+                  <span className="block pt-0.5">{tBase} + {CONSTANTS[materialRev]}</span>
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
     </div>
   );
 };
-
-// Lucide icon import helper for the placeholder
-import { Plus } from 'lucide-react';
