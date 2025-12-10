@@ -39,38 +39,38 @@ class SupabaseService {
     let allData: any[] = [];
     let page = 0;
     const size = CONFIG.CONSTANTS.BATCH_SIZE;
-    
+
     try {
-        while (true) {
-            const from = page * size;
-            const to = from + size - 1;
+      while (true) {
+        const from = page * size;
+        const to = from + size - 1;
 
-            const { data, error } = await this.supabase
-                .from(tableName)
-                .select('*', { count: 'exact' })
-                .range(from, to)
-                .order(orderByCol, { ascending });
+        const { data, error } = await this.supabase
+          .from(tableName)
+          .select('*', { count: 'exact' })
+          .range(from, to)
+          .order(orderByCol, { ascending });
 
-            if (error) {
-                console.error(`Error fetching ${tableName}:`, error);
-                // If table doesn't exist, return empty array instead of crashing
-                if (error.code === '42P01') { 
-                    console.warn(`Table ${tableName} does not exist. Please run SQL migration.`);
-                    return [];
-                }
-                break;
-            }
-
-            if (data) {
-                allData = [...allData, ...data];
-            }
-
-            if (!data || data.length < size) break;
-            page++;
+        if (error) {
+          console.error(`Error fetching ${tableName}:`, error);
+          // If table doesn't exist, return empty array instead of crashing
+          if (error.code === '42P01') {
+            console.warn(`Table ${tableName} does not exist. Please run SQL migration.`);
+            return [];
+          }
+          break;
         }
+
+        if (data) {
+          allData = [...allData, ...data];
+        }
+
+        if (!data || data.length < size) break;
+        page++;
+      }
     } catch (e) {
-        console.error("Critical Fetch Error:", e);
-        return [];
+      console.error("Critical Fetch Error:", e);
+      return [];
     }
 
     return allData;
@@ -79,77 +79,77 @@ class SupabaseService {
   // --- Auth Service ---
 
   async verifyAdminPassword(password: string): Promise<boolean> {
-      const inputPwd = password.trim();
-      
-      // If mock mode, simply check default
-      if (!this.isConnected || !this.supabase) return inputPwd === '0000';
+    const inputPwd = password.trim();
 
-      try {
-        const { data, error } = await this.supabase
-            .from(CONFIG.TABLES.ADMIN_SETTINGS)
-            .select('value')
-            .eq('key', CONFIG.CONSTANTS.ADMIN_PWD_KEY)
-            .single();
+    // If mock mode, simply check default
+    if (!this.isConnected || !this.supabase) return inputPwd === '0000';
 
-        // FAILSAFE: If the settings table doesn't exist yet or the row is missing (PGRST116),
-        // we fallback to the default '0000' to allow the user to login and setup the system.
-        if (error) {
-            console.warn('Admin password lookup failed (using fallback):', error.message);
-            // Check if error is "Row not found" or "Table not found"
-            if (error.code === 'PGRST116' || error.code === '42P01') {
-                return inputPwd === '0000';
-            }
-            return false;
+    try {
+      const { data, error } = await this.supabase
+        .from(CONFIG.TABLES.ADMIN_SETTINGS)
+        .select('value')
+        .eq('key', CONFIG.CONSTANTS.ADMIN_PWD_KEY)
+        .single();
+
+      // FAILSAFE: If the settings table doesn't exist yet or the row is missing (PGRST116),
+      // we fallback to the default '0000' to allow the user to login and setup the system.
+      if (error) {
+        console.warn('Admin password lookup failed (using fallback):', error.message);
+        // Check if error is "Row not found" or "Table not found"
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          return inputPwd === '0000';
         }
-
-        if (!data) return false;
-        
-        // Strict comparison with trim
-        return data.value.trim() === inputPwd;
-      } catch (e) {
-        console.error("Auth Exception:", e);
-        // Fallback for critical failure to avoid lockout during setup
-        return inputPwd === '0000'; 
+        return false;
       }
+
+      if (!data) return false;
+
+      // Strict comparison with trim
+      return data.value.trim() === inputPwd;
+    } catch (e) {
+      console.error("Auth Exception:", e);
+      // Fallback for critical failure to avoid lockout during setup
+      return inputPwd === '0000';
+    }
   }
 
   async verifyEngineerPassword(name: string, password: string): Promise<boolean> {
-      if (!this.isConnected || !this.supabase) return true; // Mock allow if no DB
+    if (!this.isConnected || !this.supabase) return true; // Mock allow if no DB
 
-      try {
-        const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
-        const { data, error } = await this.supabase
-            .from(CONFIG.TABLES.USER_SETTINGS)
-            .select('value')
-            .eq('key', key)
-            .single();
+    try {
+      const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
+      const { data, error } = await this.supabase
+        .from(CONFIG.TABLES.USER_SETTINGS)
+        .select('value')
+        .eq('key', key)
+        .single();
 
-        if (error || !data) return false; 
-        return data.value.trim() === password.trim();
-      } catch (e) {
-        console.error(e);
-        return false;
-      }
+      if (error || !data) return false;
+      return data.value.trim() === password.trim();
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   }
 
   async setEngineerPassword(name: string, password: string): Promise<void> {
-      if (!this.isConnected || !this.supabase) return;
-      const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
-      await this.supabase
-        .from(CONFIG.TABLES.USER_SETTINGS)
-        .upsert({ key, value: password.trim() });
+    if (!this.isConnected || !this.supabase) return;
+    const key = `${CONFIG.CONSTANTS.USER_PWD_PREFIX}${name}`;
+    await this.supabase
+      .from(CONFIG.TABLES.USER_SETTINGS)
+      .upsert({ key, value: password.trim() });
   }
 
   async changeAdminPassword(oldPwd: string, newPwd: string): Promise<boolean> {
-      const isValid = await this.verifyAdminPassword(oldPwd);
-      if (!isValid) return false;
+    const isValid = await this.verifyAdminPassword(oldPwd);
+    if (!isValid) return false;
 
-      if (this.isConnected && this.supabase) {
-          await this.supabase
-            .from(CONFIG.TABLES.ADMIN_SETTINGS)
-            .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
-      }
-      return true;
+    if (this.isConnected && this.supabase) {
+      await this.supabase
+        .from(CONFIG.TABLES.ADMIN_SETTINGS)
+        .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
+    }
+    return true;
   }
 
   // --- Mappers ---
@@ -168,7 +168,7 @@ class SupabaseService {
       quantity: data.quantity,
       unitPrice: data.unit_price,
       discountRate: data.discount_rate,
-      totalAmount: Math.round(data.unit_price * data.quantity * (data.discount_rate / 100)),
+      totalAmount: data.total_amount !== undefined ? data.total_amount : Math.round(data.unit_price * data.quantity * (data.discount_rate / 100)),
       status: data.status,
       createDate: data.create_date,
       targetDate: data.target_date,
@@ -199,18 +199,18 @@ class SupabaseService {
 
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
     if (!this.isConnected || !this.supabase) throw new Error("No DB");
-    
+
     const { data, error } = await this.supabase
-        .from(CONFIG.TABLES.PRODUCTS)
-        .insert({
-            name: product.name,
-            specification: product.specification,
-            category: product.category,
-            standard_price: product.standardPrice,
-            last_updated: new Date().toISOString()
-        })
-        .select()
-        .single();
+      .from(CONFIG.TABLES.PRODUCTS)
+      .insert({
+        name: product.name,
+        specification: product.specification,
+        category: product.category,
+        standard_price: product.standardPrice,
+        last_updated: new Date().toISOString()
+      })
+      .select()
+      .single();
     if (error) throw error;
     return this.mapProductFromDB(data);
   }
@@ -251,36 +251,38 @@ class SupabaseService {
   }
 
   async checkOrderExists(orderNumber: string): Promise<boolean> {
-      if (!this.isConnected || !this.supabase) return false;
-      const { count } = await this.supabase
-        .from(CONFIG.TABLES.ORDERS)
-        .select('*', { count: 'exact', head: true })
-        .eq('order_number', orderNumber);
-      return (count || 0) > 0;
+    if (!this.isConnected || !this.supabase) return false;
+    const { count } = await this.supabase
+      .from(CONFIG.TABLES.ORDERS)
+      .select('*', { count: 'exact', head: true })
+      .eq('order_number', orderNumber);
+    return (count || 0) > 0;
   }
 
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
     if (!this.isConnected || !this.supabase) throw new Error("No DB Connection");
 
+    // Calculate total amount explicitly to save it
     const dbPayloads = ordersData.map(o => ({
-        order_number: manualOrderNumber,
-        equipment_number: o.equipmentNumber,
-        equipment_name: o.equipmentName,
-        customer_name: o.customerName,
-        product_id: o.productId,
-        product_name: o.productName,
-        product_spec: o.productSpec,
-        category: o.category,
-        calibration_type: o.calibrationType,
-        quantity: o.quantity,
-        unit_price: o.unitPrice,
-        discount_rate: o.discountRate,
-        status: o.status,
-        create_date: new Date().toISOString(),
-        target_date: o.targetDate,
-        technicians: o.technicians,
-        notes: o.notes,
-        is_archived: false
+      order_number: manualOrderNumber,
+      equipment_number: o.equipmentNumber,
+      equipment_name: o.equipmentName,
+      customer_name: o.customerName,
+      product_id: o.productId,
+      product_name: o.productName,
+      product_spec: o.productSpec,
+      category: o.category,
+      calibration_type: o.calibrationType,
+      quantity: o.quantity,
+      unit_price: o.unitPrice,
+      discount_rate: o.discountRate,
+      total_amount: Math.round(o.unitPrice * o.quantity * (o.discountRate / 100)), // Save calculated total
+      status: o.status,
+      create_date: new Date().toISOString(),
+      target_date: o.targetDate,
+      technicians: o.technicians,
+      notes: o.notes,
+      is_archived: false
     }));
 
     const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(dbPayloads);
@@ -291,7 +293,7 @@ class SupabaseService {
     if (!this.isConnected || !this.supabase) return;
     const updates: any = { status: newStatus };
     if (newStatus === CalibrationStatus.COMPLETED) {
-        updates.is_archived = true;
+      updates.is_archived = true;
     }
     await this.supabase.from(CONFIG.TABLES.ORDERS).update(updates).eq('order_number', orderNumber);
   }
@@ -305,24 +307,33 @@ class SupabaseService {
     if (!this.isConnected || !this.supabase) return;
     await this.supabase.from(CONFIG.TABLES.ORDERS).update({ target_date: new Date(newDate).toISOString() }).eq('order_number', orderNumber);
   }
-  
+
+  async updateOrderItem(id: string, updates: { quantity: number; unitPrice: number; totalAmount: number }): Promise<void> {
+    if (!this.isConnected || !this.supabase) return;
+    await this.supabase.from(CONFIG.TABLES.ORDERS).update({
+      quantity: updates.quantity,
+      unit_price: updates.unitPrice,
+      total_amount: updates.totalAmount
+    }).eq('id', id);
+  }
+
   async restoreOrderByNo(orderNumber: string, reason: string): Promise<void> {
-      if (!this.isConnected || !this.supabase) return;
-      await this.supabase.from(CONFIG.TABLES.ORDERS).update({
-            is_archived: false,
-            status: CalibrationStatus.PENDING,
-            resurrect_reason: reason
-          }).eq('order_number', orderNumber);
+    if (!this.isConnected || !this.supabase) return;
+    await this.supabase.from(CONFIG.TABLES.ORDERS).update({
+      is_archived: false,
+      status: CalibrationStatus.PENDING,
+      resurrect_reason: reason
+    }).eq('order_number', orderNumber);
   }
 
   async deleteOrderByNo(orderNumber: string): Promise<void> {
-      if (!this.isConnected || !this.supabase) return;
-      await this.supabase.from(CONFIG.TABLES.ORDERS).delete().eq('order_number', orderNumber);
+    if (!this.isConnected || !this.supabase) return;
+    await this.supabase.from(CONFIG.TABLES.ORDERS).delete().eq('order_number', orderNumber);
   }
-  
+
   // Compatibility shim for existing components using checkAdminPassword
   async checkAdminPassword(input: string): Promise<boolean> {
-      return this.verifyAdminPassword(input);
+    return this.verifyAdminPassword(input);
   }
 }
 
