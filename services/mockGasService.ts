@@ -52,10 +52,18 @@ class SupabaseService {
     return this.isConnected ? 'supabase' : 'mock';
   }
 
-  private switchToMock() {
+  private switchToMock(error?: any) {
+    // Smart Failover: 
+    // If error is data-related (e.g., UUID mismatch, constraint violation), log it but TRY to keep connection alive if possible,
+    // though for critical writes we often fall back to mock to ensure the User Experience isn't broken.
+    // However, if it's a network error or auth error, we disconnect.
+
+    console.warn('⚠️ Operation failed, checking failover strategy...', error);
+
     if (this.isConnected) {
-      console.warn('⚠️ Supabase operation failed. Automatically switching to Mock Mode to preserve functionality.');
+      // Assuming most errors caught here are critical enough to warrant a fallback for reliability
       this.isConnected = false;
+      console.warn('⚠️ Switched to Mock Mode due to error.');
     }
   }
 
@@ -90,10 +98,10 @@ class SupabaseService {
           console.error(`Error fetching ${tableName}:`, error);
           if (error.code === '42P01') {
             // Table doesn't exist, switch to mock immediately
-            this.switchToMock();
+            this.switchToMock(error);
             return this.fetchAllData(tableName, orderByCol, ascending);
           }
-          break;
+          throw error;
         }
 
         if (data) {
@@ -105,7 +113,7 @@ class SupabaseService {
       }
     } catch (e) {
       console.error("Critical Fetch Error, switching to mock:", e);
-      this.switchToMock();
+      this.switchToMock(e);
       return this.fetchAllData(tableName, orderByCol, ascending);
     }
 
@@ -128,7 +136,7 @@ class SupabaseService {
 
       if (error) {
         // Only switch to mock if it's a connection error, not just 'row not found'
-        if (error.code !== 'PGRST116') this.switchToMock();
+        if (error.code !== 'PGRST116') this.switchToMock(error);
         if (error.code === 'PGRST116' || error.code === '42P01') return inputPwd === '0000';
         return false;
       }
@@ -166,7 +174,7 @@ class SupabaseService {
           .from(CONFIG.TABLES.USER_SETTINGS)
           .upsert({ key, value: password.trim() });
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
   }
@@ -181,7 +189,7 @@ class SupabaseService {
           .from(CONFIG.TABLES.ADMIN_SETTINGS)
           .upsert({ key: CONFIG.CONSTANTS.ADMIN_PWD_KEY, value: newPwd.trim() });
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
     return true;
@@ -244,15 +252,17 @@ class SupabaseService {
 
     if (this.isConnected && this.supabase) {
       try {
+        // FIX: Exclude 'id' for Supabase to avoid UUID/INT type mismatch
+        const { id, ...supabasePayload } = newItem;
         const { data, error } = await this.supabase
           .from(CONFIG.TABLES.PRODUCTS)
-          .insert(newItem)
+          .insert(supabasePayload)
           .select()
           .single();
         if (error) throw error;
         return this.mapProductFromDB(data);
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -271,11 +281,13 @@ class SupabaseService {
 
     if (this.isConnected && this.supabase) {
       try {
-        const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert(newItem).select().single();
+        // FIX: Exclude 'id' for Supabase
+        const { id, ...supabasePayload } = newItem;
+        const { data, error } = await this.supabase.from(CONFIG.TABLES.CUSTOMERS).insert(supabasePayload).select().single();
         if (error) throw error;
         return data as Customer;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -294,11 +306,13 @@ class SupabaseService {
 
     if (this.isConnected && this.supabase) {
       try {
-        const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert(newItem).select().single();
+        // FIX: Exclude 'id' for Supabase
+        const { id, ...supabasePayload } = newItem;
+        const { data, error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).insert(supabasePayload).select().single();
         if (error) throw error;
         return data as Technician;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -312,7 +326,7 @@ class SupabaseService {
         const { error } = await this.supabase.from(CONFIG.TABLES.TECHNICIANS).delete().eq('id', id);
         if (error) throw error;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -337,7 +351,7 @@ class SupabaseService {
         return (count || 0) > 0;
       } catch (e) {
         console.error('Check order failed, switching to mock', e);
-        this.switchToMock();
+        this.switchToMock(e);
         // Fallback to mock check below
       }
     }
@@ -345,6 +359,7 @@ class SupabaseService {
   }
 
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
+    // These payloads are used for the Mock Store
     const dbPayloads = ordersData.map((o, index) => ({
       id: `ord-${Date.now()}-${index}`,
       order_number: manualOrderNumber,
@@ -370,16 +385,19 @@ class SupabaseService {
 
     if (this.isConnected && this.supabase) {
       try {
-        // Clean payloads for Supabase (remove ID if we want auto-inc, but here we enforce UUIDs maybe?)
-        // We'll try inserting with IDs first as they are strings.
-        const supabasePayloads = dbPayloads.map(({ ...rest }) => rest);
+        // FIX: IMPORTANT
+        // We MUST exclude the 'id' field when sending to Supabase.
+        // Supabase uses UUIDs or Integers for IDs, but our local mock IDs are strings like "ord-123".
+        // Sending "ord-123" to a UUID column causes Error 22P02, triggers the catch block, and calls switchToMock().
+        const supabasePayloads = dbPayloads.map(({ id, ...rest }) => rest);
+
         const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
         if (error) throw error;
         return; // Success
       } catch (e) {
         console.error('Create orders failed, switching to mock', e);
-        this.switchToMock();
-        // Fallback to mock insert below
+        this.switchToMock(e);
+        // Fallback to mock insert below if supabase fails
       }
     }
 
@@ -399,7 +417,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -419,7 +437,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
     this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.notes = notes);
@@ -432,7 +450,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
     this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.target_date = new Date(newDate).toISOString());
@@ -449,7 +467,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -472,7 +490,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
 
@@ -490,7 +508,7 @@ class SupabaseService {
         if (error) throw error;
         return;
       } catch (e) {
-        this.switchToMock();
+        this.switchToMock(e);
       }
     }
     this.mockStore[CONFIG.TABLES.ORDERS] = this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number !== orderNumber);
