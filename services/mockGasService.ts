@@ -31,6 +31,18 @@ class SupabaseService {
     this.init();
   }
 
+  // UUID Generator (Polyfill for strictly random V4 UUIDs)
+  private generateUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback for environments without crypto.randomUUID (e.g. some build envs or older browsers)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   private init() {
     if (CONFIG.SUPABASE.URL && CONFIG.SUPABASE.KEY && CONFIG.SUPABASE.URL.startsWith('http')) {
       try {
@@ -59,6 +71,7 @@ class SupabaseService {
 
   private isValidUUID(uuid: string) {
     if (!uuid) return false;
+    // Relaxed check to allow our generated UUIDs and standard ones
     const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     return regex.test(uuid);
   }
@@ -224,7 +237,7 @@ class SupabaseService {
 
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
     const newItem = {
-      id: self.crypto.randomUUID(),
+      id: this.generateUUID(),
       name: product.name,
       specification: product.specification,
       category: product.category,
@@ -263,7 +276,7 @@ class SupabaseService {
   }
 
   async addCustomer(name: string): Promise<Customer> {
-    const newItem = { id: self.crypto.randomUUID(), name };
+    const newItem = { id: this.generateUUID(), name };
     this.mockStore[CONFIG.TABLES.CUSTOMERS].push(newItem);
 
     if (this.isConnected && this.supabase) {
@@ -290,7 +303,7 @@ class SupabaseService {
   }
 
   async addTechnician(name: string): Promise<Technician> {
-    const newItem = { id: self.crypto.randomUUID(), name };
+    const newItem = { id: this.generateUUID(), name };
     this.mockStore[CONFIG.TABLES.TECHNICIANS].push(newItem);
 
     if (this.isConnected && this.supabase) {
@@ -343,7 +356,7 @@ class SupabaseService {
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
     // 1. Prepare Data
     const dbPayloads = ordersData.map((o, index) => ({
-      id: self.crypto.randomUUID(),
+      id: this.generateUUID(),
       order_number: manualOrderNumber,
       equipment_number: o.equipmentNumber,
       equipment_name: o.equipmentName,
