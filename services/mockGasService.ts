@@ -370,31 +370,60 @@ class SupabaseService {
     console.log('✅ Mock Orders Created (Optimistic UI)');
 
     // 3. Sync to Supabase
-    if (this.isConnected && this.supabase) {
+    try {
+      const supabasePayloads = dbPayloads.map(({ id, ...rest }) => {
+        // Sanitize Product ID (must be UUID or null)
+        let cleanPid = rest.product_id;
+        if (cleanPid && !this.isValidUUID(cleanPid)) {
+          cleanPid = null;
+        }
+
+        // Sanitize Technicians: If the DB table doesn't have this column or it's not set up for arrays,
+        // we might want to exclude it.
+        // For safety, we keep it first.
+        return {
+          ...rest,
+          product_id: cleanPid
+        };
+      });
+
+      // Attempt 1: Full Insert
+      const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
+      if (error) throw error;
+      console.log('✅ Supabase Orders Synced');
+    } catch (e: any) {
+      console.error('⚠️ Supabase Write Failed (Attempt 1):', e);
+
+      // Critical: Check if it's a schema mismatch (missing column 'technicians' etc.)
+      // We retry with a "Safe" payload to ensure the Order is at least saved.
       try {
-        const supabasePayloads = dbPayloads.map(({ id, ...rest }) => {
-          // Sanitize Product ID (must be UUID or null)
-          let cleanPid = rest.product_id;
-          if (cleanPid && !this.isValidUUID(cleanPid)) {
-            cleanPid = null;
-          }
+        console.warn('🔄 Retrying with Safe Payload (excluding technicians/extra fields)...');
+        const safePayloads = dbPayloads.map(({ id, ...rest }) => ({
+          id,
+          order_number: rest.order_number,
+          equipment_number: rest.equipment_number,
+          equipment_name: rest.equipment_name,
+          customer_name: rest.customer_name,
+          product_id: (rest.product_id && this.isValidUUID(rest.product_id)) ? rest.product_id : null,
+          // Exclude technicians, product_name, product_spec, category, calibration_type if suspecting they are missing
+          // But we keep minimal necessary columns that are likely in the "basic" schema
+          // Assuming the user created at least the columns visible in the screenshot.
+          // If even these fail, we fall to mock.
+          status: rest.status,
+          create_date: rest.create_date,
+          target_date: rest.target_date,
+          unit_price: rest.unit_price,
+          quantity: rest.quantity,
+          total_amount: rest.total_amount
+        }));
 
-          // Sanitize Technicians: If the DB table doesn't have this column or it's not set up for arrays,
-          // we might want to exclude it or ensure it's compatible.
-          // For safety, we keep it, but if it fails, the catch block handles it.
-          return {
-            ...rest,
-            product_id: cleanPid
-          };
-        });
-
-        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(supabasePayloads);
-        if (error) throw error;
-        console.log('✅ Supabase Orders Synced');
-      } catch (e) {
-        console.error('⚠️ Supabase Write Failed:', e);
-        // We disconnect to ensure the UI continues to use the Mock Store data we just pushed
-        this.switchToMock(e);
+        const { error: retryError } = await this.supabase.from(CONFIG.TABLES.ORDERS).insert(safePayloads);
+        if (retryError) throw retryError;
+        console.log('✅ Supabase Orders Synced (Safe Payload)');
+      } catch (retryE) {
+        console.error('❌ Supabase Write Failed (Final):', retryE);
+        // Only switch to mock if the retry also failed
+        this.switchToMock(retryE);
       }
     }
   }
