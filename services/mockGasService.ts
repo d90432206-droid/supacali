@@ -1,4 +1,3 @@
-
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Order, Product, Customer, CalibrationStatus, Technician } from '../types';
 import { CONFIG } from './config';
@@ -53,13 +52,12 @@ class SupabaseService {
   }
 
   private switchToMock(error?: any) {
-    console.warn('⚠️ Operation failed, using Mock Store fallback.', error);
-    // We do NOT automatically set isConnected = false for every error.
-    // Only for critical connection issues. For data constraints (22P02), we just log and fallback once.
-    if (error && (error.code === 'PGRST301' || error.message?.includes('fetch'))) {
-      this.isConnected = false;
-      console.warn('⚠️ Critical connection error, switching to offline mode permanently.');
-    }
+    console.warn('⚠️ Operation failed, switching to Offline Mock Mode to preserve data consistency.', error);
+    // CRITICAL FIX:
+    // If any write fails (e.g. UUID format, Constraints, Network), we MUST disconnect.
+    // This ensures the UI immediately starts reading from the mockStore (where we successfully cached the write),
+    // preventing the "Order Disappears" bug.
+    this.isConnected = false;
   }
 
   // Helper to check if string is UUID
@@ -95,7 +93,7 @@ class SupabaseService {
           .order(orderByCol, { ascending });
 
         if (error) {
-          // If table missing, fallback to mock without disconnecting
+          // If table missing, fallback to mock without disconnecting (soft fail)
           if (error.code === '42P01') {
             console.warn(`Table ${tableName} not found in Supabase. Using mock.`);
             const mockData = this.mockStore[tableName] || [];
@@ -417,7 +415,8 @@ class SupabaseService {
         if (error) throw error;
         console.log('✅ Supabase Orders Synced');
       } catch (e) {
-        console.error('⚠️ Create orders failed in Supabase, but saved locally.', e);
+        console.error('⚠️ Create orders failed in Supabase, switching to OFFLINE mode.', e);
+        // CRITICAL: Force disconnect to ensure the user sees the orders we just pushed to mockStore
         this.switchToMock(e);
       }
     }
