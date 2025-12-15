@@ -224,7 +224,7 @@ class SupabaseService {
 
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
     const newItem = {
-      id: 'prod-' + Date.now(),
+      id: self.crypto.randomUUID(),
       name: product.name,
       specification: product.specification,
       category: product.category,
@@ -263,7 +263,7 @@ class SupabaseService {
   }
 
   async addCustomer(name: string): Promise<Customer> {
-    const newItem = { id: 'cust-' + Date.now(), name };
+    const newItem = { id: self.crypto.randomUUID(), name };
     this.mockStore[CONFIG.TABLES.CUSTOMERS].push(newItem);
 
     if (this.isConnected && this.supabase) {
@@ -290,7 +290,7 @@ class SupabaseService {
   }
 
   async addTechnician(name: string): Promise<Technician> {
-    const newItem = { id: 'tech-' + Date.now(), name };
+    const newItem = { id: self.crypto.randomUUID(), name };
     this.mockStore[CONFIG.TABLES.TECHNICIANS].push(newItem);
 
     if (this.isConnected && this.supabase) {
@@ -343,7 +343,7 @@ class SupabaseService {
   async createOrders(ordersData: any[], manualOrderNumber: string): Promise<void> {
     // 1. Prepare Data
     const dbPayloads = ordersData.map((o, index) => ({
-      id: `ord-${Date.now()}-${index}`,
+      id: self.crypto.randomUUID(),
       order_number: manualOrderNumber,
       equipment_number: o.equipmentNumber,
       equipment_name: o.equipmentName,
