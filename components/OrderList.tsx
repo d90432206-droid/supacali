@@ -134,8 +134,9 @@ const EditableOrderRow: React.FC<{
                 </td>
                 <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-end gap-1">
-                        <button onClick={handleSave} disabled={loading} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded">
+                        <button onClick={handleSave} disabled={loading} className="p-1 text-emerald-600 hover:bg-emerald-100 rounded relative group">
                             <Save size={16} />
+                            {loading && <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded whitespace-nowrap">Saving...</span>}
                         </button>
                         <button onClick={handleCancel} disabled={loading} className="p-1 text-red-500 hover:bg-red-100 rounded">
                             <XCircle size={16} />
