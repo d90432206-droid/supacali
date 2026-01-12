@@ -389,7 +389,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
           // Truly ad-hoc item (not saving to inventory)
           // Generate a random ID that looks like UUID to pass schema validation if needed, or keep null
           // For now, we leave it empty or generate a simple placeholder if Service requires it
-          finalProductId = undefined; // Let service handle null
+          finalProductId = ''; // Let service handle empty string
         }
 
         ordersToCreate.push({

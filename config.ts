@@ -11,8 +11,8 @@ const getEnv = (key: string) => {
 export const CONFIG = {
   SUPABASE: {
     // 預設值僅供 Demo 使用，建議使用環境變數覆寫
-    URL: getEnv('VITE_SUPABASE_URL') || 'https://fbpdjnreljhfgmdflfjl.supabase.co',
-    KEY: getEnv('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZicGRqbnJlbGpoZmdtZGZsZmpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3NjY1OTUsImV4cCI6MjA4MDM0MjU5NX0.Ocy7vUZ3tURpPC2t7PQ4062r_zxtVSNehiYN2nT6blQ',
+    URL: getEnv('VITE_SUPABASE_URL') || 'https://wcgdapjjzpzvjprzudyq.supabase.co',
+    KEY: getEnv('VITE_SUPABASE_ANON_KEY') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndjZ2RhcGpqenB6dmpwcnp1ZHlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NTc4ODEsImV4cCI6MjA4MzUzMzg4MX0._Nn91KgZjMCZfvr6189RY-GIy_l-PwZSAIrQ06SYJNY',
   },
   // 資料表名稱對應設定
   TABLES: {
