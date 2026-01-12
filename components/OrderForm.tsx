@@ -802,29 +802,66 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-4 justify-end">
-                        <div className="text-right flex items-center gap-2">
-                          <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-1">
-                            <span className="text-xs text-slate-400 mr-1">$</span>
+                      <div className="flex items-center gap-2 justify-end flex-wrap">
+                        {/* 單價 */}
+                        <div className="flex items-center bg-white border border-slate-200 rounded px-2 py-1 hover:border-brand-400 transition-colors">
+                          <span className="text-xs text-slate-400 mr-1">$</span>
+                          <input
+                            type="number"
+                            value={item.price}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setCart(cart.map(c => c.tempId === item.tempId ? { ...c, price: isNaN(val) ? 0 : val } : c));
+                            }}
+                            className="w-16 text-right text-sm font-medium outline-none"
+                            placeholder="單價"
+                          />
+                        </div>
+                        
+                        {/* 數量 */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-400">×</span>
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onFocus={(e) => e.target.select()}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value);
+                              setCart(cart.map(c => c.tempId === item.tempId ? { ...c, quantity: isNaN(val) || val < 1 ? 1 : val } : c));
+                            }}
+                            className="w-14 px-2 py-1 text-right text-sm font-medium border border-slate-200 rounded hover:border-brand-400 outline-none transition-colors"
+                          />
+                        </div>
+                        
+                        {/* 小計（可直接編輯） */}
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-slate-400">=</span>
+                          <div className="flex items-center bg-amber-50 border border-amber-200 rounded px-2 py-1 hover:border-amber-400 transition-colors">
+                            <span className="text-xs text-amber-600 mr-1">$</span>
                             <input
                               type="number"
-                              value={item.price}
+                              value={item.price * item.quantity}
                               onFocus={(e) => e.target.select()}
                               onChange={(e) => {
-                                const val = parseFloat(e.target.value);
-                                setCart(cart.map(c => c.tempId === item.tempId ? { ...c, price: isNaN(val) ? 0 : val } : c));
+                                const totalVal = parseFloat(e.target.value);
+                                if (!isNaN(totalVal) && item.quantity > 0) {
+                                  const newPrice = totalVal / item.quantity;
+                                  setCart(cart.map(c => c.tempId === item.tempId ? { ...c, price: newPrice } : c));
+                                }
                               }}
-                              className="w-16 text-right text-sm font-medium outline-none"
+                              className="w-20 text-right text-sm font-bold outline-none bg-transparent text-amber-700"
+                              title="可直接編輯總金額（會自動反算單價）"
                             />
                           </div>
-                          <span className="text-slate-400 text-xs">x {item.quantity}</span>
                         </div>
-                        <div className="text-sm font-bold text-slate-700 w-20 text-right">
-                          ${(item.price * item.quantity).toLocaleString()}
-                        </div>
+                        
+                        {/* 刪除按鈕 */}
                         <button
                           onClick={() => removeFromCart(item.tempId)}
-                          className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="移除此項"
                         >
                           <Trash2 size={16} />
                         </button>
