@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Order, CalibrationStatus, StatusLabel, CalibrationTypeLabel, OrderTemplate } from '../types';
+import { Order, CalibrationStatus, StatusLabel, CalibrationTypeLabel, OrderTemplate, Technician } from '../types';
 import { mockGasService } from '../services/mockGasService';
 import { Calendar, User, Check, Archive, RefreshCcw, Copy, MessageSquare, Building2, Monitor, Package, ChevronDown, ChevronRight, ChevronUp, Trash2, AlertTriangle, X, Edit3, Save, XCircle } from 'lucide-react';
 
@@ -182,8 +182,22 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, refreshData, onCop
     const [tempNotes, setTempNotes] = useState('');
     const [expandedOrderNos, setExpandedOrderNos] = useState<Set<string>>(new Set());
 
+    // Technician editing state
+    const [editingTechniciansNo, setEditingTechniciansNo] = useState<string | null>(null);
+    const [tempTechnicians, setTempTechnicians] = useState<string[]>([]);
+    const [availableTechnicians, setAvailableTechnicians] = useState<Technician[]>([]);
+
     // Local state for status changes before confirmation
     const [statusDrafts, setStatusDrafts] = useState<Record<string, CalibrationStatus>>({});
+
+    // Load available technicians on mount
+    useEffect(() => {
+        const loadTechnicians = async () => {
+            const techs = await mockGasService.getTechnicians();
+            setAvailableTechnicians(techs);
+        };
+        loadTechnicians();
+    }, []);
 
     // Delete / Password Modal State
     const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -280,6 +294,28 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, refreshData, onCop
         setTempNotes(group.notes || '');
         setEditingNotesNo(group.orderNumber);
     }
+
+    // Technician editing handlers
+    const saveTechnicians = async (orderNo: string) => {
+        await mockGasService.updateOrderTechniciansByNo(orderNo, tempTechnicians);
+        setEditingTechniciansNo(null);
+        refreshData();
+    };
+
+    const startEditingTechnicians = (group: OrderGroup) => {
+        setTempTechnicians(group.technicians || []);
+        setEditingTechniciansNo(group.orderNumber);
+    };
+
+    const toggleTechnician = (techName: string) => {
+        setTempTechnicians(prev => {
+            if (prev.includes(techName)) {
+                return prev.filter(t => t !== techName);
+            } else {
+                return [...prev, techName];
+            }
+        });
+    };
 
     // Handle item update from EditableOrderRow
     const handleItemUpdate = async (id: string, updates: { quantity: number; unitPrice: number; totalAmount: number }) => {
@@ -478,16 +514,57 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, refreshData, onCop
                                                 </div>
                                             </td>
 
-                                            <td className="p-4 align-top">
-                                                <div className="flex flex-wrap gap-1">
-                                                    {group.technicians && group.technicians.length > 0 ? (
-                                                        group.technicians.map(t => (
-                                                            <span key={t} className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded flex items-center gap-1">
-                                                                <User size={10} /> {t}
-                                                            </span>
-                                                        ))
-                                                    ) : <span className="text-xs text-slate-400">未指派</span>}
-                                                </div>
+                                            <td className="p-4 align-top" onClick={(e) => e.stopPropagation()}>
+                                                {editingTechniciansNo === group.orderNumber ? (
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="bg-white border border-brand-300 rounded p-2 shadow-md max-w-xs">
+                                                            <div className="text-xs font-bold text-slate-500 mb-2">選擇負責人員</div>
+                                                            <div className="flex flex-col gap-1 max-h-32 overflow-y-auto">
+                                                                {availableTechnicians.map(tech => (
+                                                                    <label key={tech.id} className="flex items-center gap-2 cursor-pointer hover:bg-slate-50 px-1 py-0.5 rounded">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={tempTechnicians.includes(tech.name)}
+                                                                            onChange={() => toggleTechnician(tech.name)}
+                                                                            className="w-3 h-3 text-brand-600 rounded focus:ring-1 focus:ring-brand-500"
+                                                                        />
+                                                                        <span className="text-xs text-slate-700">{tech.name}</span>
+                                                                    </label>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => saveTechnicians(group.orderNumber)} className="text-green-600 hover:bg-green-50 p-1 rounded">
+                                                                <Check size={14} />
+                                                            </button>
+                                                            <button onClick={() => setEditingTechniciansNo(null)} className="text-slate-400 hover:bg-slate-50 p-1 rounded">
+                                                                <X size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className="flex flex-wrap gap-1 cursor-pointer hover:bg-slate-50 p-1 rounded min-h-[24px]"
+                                                        onClick={() => viewMode === 'active' && startEditingTechnicians(group)}
+                                                        title="點擊編輯負責人員"
+                                                    >
+                                                        {group.technicians && group.technicians.length > 0 ? (
+                                                            group.technicians.map(t => (
+                                                                <span key={t} className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                    <User size={10} /> {t}
+                                                                </span>
+                                                            ))
+                                                        ) : (
+                                                            viewMode === 'active' ? (
+                                                                <span className="text-slate-300 italic flex items-center text-xs">
+                                                                    <User size={10} className="mr-1" /> +指派
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-xs text-slate-400">未指派</span>
+                                                            )
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
 
                                             <td className="p-4 align-top" onClick={(e) => e.stopPropagation()}>
@@ -667,11 +744,44 @@ export const OrderList: React.FC<OrderListProps> = ({ orders, refreshData, onCop
                             )}
 
                             <div className="border-t border-slate-50 pt-2 text-sm space-y-2">
-                                <div className="flex justify-between items-center">
+                                <div className="flex justify-between items-start">
                                     <span className="text-xs text-slate-400">負責人</span>
-                                    <div className="flex gap-1">
-                                        {group.technicians?.map(t => <span key={t} className="text-xs bg-slate-50 px-1 rounded">{t}</span>)}
-                                    </div>
+                                    {editingTechniciansNo === group.orderNumber ? (
+                                        <div className="flex flex-col gap-1 flex-1 ml-2">
+                                            <div className="bg-white border border-slate-200 rounded p-2 space-y-1">
+                                                {availableTechnicians.map(tech => (
+                                                    <label key={tech.id} className="flex items-center gap-2 cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={tempTechnicians.includes(tech.name)}
+                                                            onChange={() => toggleTechnician(tech.name)}
+                                                            className="w-3 h-3 text-brand-600 rounded"
+                                                        />
+                                                        <span className="text-xs text-slate-700">{tech.name}</span>
+                                                    </label>
+                                                ))}
+                                            </div>
+                                            <div className="flex gap-1 justify-end">
+                                                <button onClick={() => saveTechnicians(group.orderNumber)} className="text-xs bg-green-600 text-white px-2 py-1 rounded">
+                                                    確認
+                                                </button>
+                                                <button onClick={() => setEditingTechniciansNo(null)} className="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded">
+                                                    取消
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div 
+                                            className="flex gap-1 flex-wrap justify-end flex-1 cursor-pointer"
+                                            onClick={() => viewMode === 'active' && startEditingTechnicians(group)}
+                                        >
+                                            {group.technicians && group.technicians.length > 0 ? (
+                                                group.technicians.map(t => <span key={t} className="text-xs bg-slate-50 px-1 rounded">{t}</span>)
+                                            ) : (
+                                                viewMode === 'active' && <span className="text-xs text-slate-300 italic">+指派</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs text-slate-400">預計完成</span>

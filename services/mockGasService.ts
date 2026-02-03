@@ -486,6 +486,16 @@ class SupabaseService {
     }
   }
 
+  async updateOrderTechniciansByNo(orderNumber: string, technicians: string[]): Promise<void> {
+    this.mockStore[CONFIG.TABLES.ORDERS].filter(o => o.order_number === orderNumber).forEach(o => o.technicians = technicians);
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase.from(CONFIG.TABLES.ORDERS).update({ technicians }).eq('order_number', orderNumber);
+        if (error) throw error;
+      } catch (e) { this.switchToMock(e); }
+    }
+  }
+
   async updateOrderItem(id: string, updates: { quantity: number; unitPrice: number; totalAmount: number }): Promise<void> {
     const item = this.mockStore[CONFIG.TABLES.ORDERS].find(o => o.id === id);
     if (item) {
