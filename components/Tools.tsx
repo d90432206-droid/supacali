@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
-import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap, ThermometerSun, TrendingUp, Flame } from 'lucide-react';
+import { Calculator, ArrowRight, RotateCcw, Thermometer, Zap, ThermometerSun, TrendingUp, Flame, Wind, Gauge, Activity, Waves } from 'lucide-react';
+
 
 export const Tools: React.FC = () => {
   // --- State for Tool 1: Temp Resistance Compensation (Hot -> Std) ---
@@ -58,6 +59,70 @@ export const Tools: React.FC = () => {
     setRBase('');
     setTTarget('');
   };
+
+  // --- Unit Converter Logic: Pressure ---
+  const [pressure, setPressure] = useState({ pa: '', mmaq: '', mmh2o: '' });
+  const handlePressureChange = (val: string, unit: 'pa' | 'mmaq' | 'mmh2o') => {
+    if (val === '') {
+        setPressure({ pa: '', mmaq: '', mmh2o: '' });
+        return;
+    }
+    const num = parseFloat(val);
+    if (isNaN(num)) return;
+
+    let pa = 0;
+    if (unit === 'pa') pa = num;
+    else pa = num * 9.80665; // 1 mmAq = 1 mmH2O = 9.80665 Pa
+
+    setPressure({
+        pa: unit === 'pa' ? val : pa.toFixed(2),
+        mmaq: unit === 'mmaq' ? val : (pa / 9.80665).toFixed(3),
+        mmh2o: unit === 'mmh2o' ? val : (pa / 9.80665).toFixed(3),
+    });
+  };
+
+  // --- Unit Converter Logic: Airflow ---
+  const [airflow, setAirflow] = useState({ cfm: '', cmm: '' });
+  const handleAirflowChange = (val: string, unit: 'cfm' | 'cmm') => {
+    if (val === '') {
+        setAirflow({ cfm: '', cmm: '' });
+        return;
+    }
+    const num = parseFloat(val);
+    if (isNaN(num)) return;
+
+    let cmm = unit === 'cmm' ? num : num / 35.3147;
+    setAirflow({
+        cmm: unit === 'cmm' ? val : cmm.toFixed(3),
+        cfm: unit === 'cfm' ? val : (cmm * 35.3147).toFixed(3),
+    });
+  };
+
+  // --- Unit Converter Logic: Energy ---
+  const [energy, setEnergy] = useState({ kw: '', rt: '', btu: '', hp: '' });
+  const handleEnergyChange = (val: string, unit: 'kw' | 'rt' | 'btu' | 'hp') => {
+    if (val === '') {
+        setEnergy({ kw: '', rt: '', btu: '', hp: '' });
+        return;
+    }
+    const num = parseFloat(val);
+    if (isNaN(num)) return;
+
+    let kw = 0;
+    if (unit === 'kw') kw = num;
+    else if (unit === 'rt') kw = num * 3.51685;
+    else if (unit === 'btu') kw = num / 3412.14;
+    else if (unit === 'hp') kw = num * 0.7457;
+
+    setEnergy({
+        kw: unit === 'kw' ? val : kw.toFixed(3),
+        rt: unit === 'rt' ? val : (kw / 3.51685).toFixed(3),
+        btu: unit === 'btu' ? val : (kw * 3412.14).toFixed(0),
+        hp: unit === 'hp' ? val : (kw / 0.7457).toFixed(3),
+    });
+  };
+
+
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12 animate-fade-in">
@@ -323,6 +388,101 @@ export const Tools: React.FC = () => {
         </div>
 
       </div>
+
+      {/* --- Unit Conversion Section --- */}
+      <div className="mt-12 mb-4">
+        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <Scaling className="text-brand-500" size={20} />
+            快速單位換算工具 (Unit Converters)
+        </h3>
+        <p className="text-sm text-slate-500 mt-1">即時雙向換算壓力、風量與能量單位</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        {/* Pressure Converter */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-2 font-bold text-slate-700 mb-6 pb-3 border-b border-slate-100">
+                <Gauge size={18} className="text-blue-500" />
+                壓力單位 (Pressure)
+            </div>
+            <div className="space-y-4">
+                <UnitInput label="Pascal (Pa)" value={pressure.pa} onChange={(v) => handlePressureChange(v, 'pa')} unit="Pa" />
+                <UnitInput label="mmAq / 水柱" value={pressure.mmaq} onChange={(v) => handlePressureChange(v, 'mmaq')} unit="mmAq" />
+                <UnitInput label="mmH2O" value={pressure.mmh2o} onChange={(v) => handlePressureChange(v, 'mmh2o')} unit="mmH2O" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-4 leading-tight italic">
+                * 定義：1 mmAq = 1 mmH2O ≈ 9.80665 Pa
+            </p>
+        </div>
+
+        {/* Airflow Converter */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-2 font-bold text-slate-700 mb-6 pb-3 border-b border-slate-100">
+                <Wind size={18} className="text-teal-500" />
+                風量單位 (Airflow)
+            </div>
+            <div className="space-y-4">
+                <UnitInput label="CMM (m³/min)" value={airflow.cmm} onChange={(v) => handleAirflowChange(v, 'cmm')} unit="CMM" />
+                <UnitInput label="CFM (ft³/min)" value={airflow.cfm} onChange={(v) => handleAirflowChange(v, 'cfm')} unit="CFM" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-4 leading-tight italic">
+                * 換算：1 CMM ≈ 35.3147 CFM
+            </p>
+        </div>
+
+        {/* Energy Converter */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-2 font-bold text-slate-700 mb-6 pb-3 border-b border-slate-100">
+                <Waves size={18} className="text-orange-500" />
+                能量/冷凍 (Power/Cooling)
+            </div>
+            <div className="space-y-4">
+                <UnitInput label="kW (Kilowatt)" value={energy.kw} onChange={(v) => handleEnergyChange(v, 'kw')} unit="kW" />
+                <UnitInput label="HP (馬力)" value={energy.hp} onChange={(v) => handleEnergyChange(v, 'hp')} unit="HP" />
+                <UnitInput label="RT (冷凍噸)" value={energy.rt} onChange={(v) => handleEnergyChange(v, 'rt')} unit="RT" />
+                <UnitInput label="BTU/hr" value={energy.btu} onChange={(v) => handleEnergyChange(v, 'btu')} unit="BTU/h" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-4 leading-tight italic">
+                * 註：1 HP ≈ 0.7457 kW, 1 RT ≈ 3.517 kW
+            </p>
+
+        </div>
+      </div>
     </div>
   );
 };
+
+// Helper Component for UI consistency
+const UnitInput: React.FC<{ label: string, value: string, onChange: (v: string) => void, unit: string }> = ({ label, value, onChange, unit }) => (
+    <div>
+        <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+        <div className="relative">
+            <input
+                type="number"
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full pl-3 pr-12 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-brand-500 outline-none font-mono text-sm bg-slate-50/50"
+                placeholder="0.00"
+            />
+            <span className="absolute right-3 top-2 text-slate-400 text-[10px] font-bold">{unit}</span>
+        </div>
+    </div>
+);
+
+const Scaling: React.FC<{className?: string, size?: number}> = ({className, size}) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width={size || 24} 
+        height={size || 24} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round" 
+        className={className}
+    >
+        <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+    </svg>
+);

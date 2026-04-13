@@ -79,6 +79,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
       .sort((a, b) => b.value - a.value);
   }, [filteredOrders]);
 
+  const categoryData = useMemo(() => {
+    const map = new Map<string, { revenue: number, count: number }>();
+    filteredOrders.forEach(o => {
+      const cat = o.category || '未分類';
+      const current = map.get(cat) || { revenue: 0, count: 0 };
+      map.set(cat, {
+        revenue: current.revenue + (o.totalAmount || 0),
+        count: current.count + (o.quantity || 1)
+      });
+    });
+    return Array.from(map)
+      .map(([name, data]) => ({ 
+        name, 
+        revenue: data.revenue, 
+        count: data.count 
+      }))
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [filteredOrders]);
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -207,6 +226,51 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
                     <Bar dataKey="value" fill="#0f766e" radius={[0, 4, 4, 0]} barSize={20} />
                 </BarChart>
             </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Category Performance Row 3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <span className="w-1 h-5 bg-brand-500 rounded-full"></span>
+                服務項目分類：營收統計
+            </h3>
+            <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} tickFormatter={(val) => `$${val/1000}k`} />
+                        <Tooltip 
+                            contentStyle={{borderRadius: '4px', border: '1px solid #e2e8f0'}}
+                            formatter={(val: number) => [`$${val.toLocaleString()}`, '營收']}
+                        />
+                        <Bar dataKey="revenue" fill="#14b8a6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-sm border border-slate-100">
+            <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <span className="w-1 h-5 bg-brand-500 rounded-full"></span>
+                服務項目分類：件數統計
+            </h3>
+            <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={categoryData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                        <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                        <Tooltip 
+                            contentStyle={{borderRadius: '4px', border: '1px solid #e2e8f0'}}
+                            formatter={(val: number) => [`${val} 件`, '校正數量']}
+                        />
+                        <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
         </div>
       </div>
     </div>

@@ -177,23 +177,44 @@ ON CONFLICT (name) DO NOTHING;
 -- =====================================================
 -- 8. RLS (Row Level Security) 政策設定
 -- =====================================================
--- 注意：由於您的系統使用自訂驗證（非 Supabase Auth），
--- 建議暫時停用 RLS 或設定允許所有操作的政策
+-- 說明：啟用 RLS 以符合安全最佳實踐
+-- 由於系統使用自訂驗證（非 Supabase Auth），配置寬鬆策略允許 anon 用戶訪問
+-- 適用場景：內部系統、受信任網路環境
 
--- 停用 RLS（開發階段）
-ALTER TABLE cali_orders DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cali_products DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cali_customers DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cali_technicians DISABLE ROW LEVEL SECURITY;
-ALTER TABLE ali_settings DISABLE ROW LEVEL SECURITY;
-ALTER TABLE cali_settings DISABLE ROW LEVEL SECURITY;
-
--- 如果需要啟用 RLS，請使用以下政策範例：
-/*
+-- 啟用 RLS
 ALTER TABLE cali_orders ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Enable all for authenticated users" ON cali_orders
+ALTER TABLE cali_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cali_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cali_technicians ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ali_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE cali_settings ENABLE ROW LEVEL SECURITY;
+
+-- 刪除舊有策略（如果存在）
+DROP POLICY IF EXISTS "Allow all for anon users" ON cali_orders;
+DROP POLICY IF EXISTS "Allow all for anon users" ON cali_products;
+DROP POLICY IF EXISTS "Allow all for anon users" ON cali_customers;
+DROP POLICY IF EXISTS "Allow all for anon users" ON cali_technicians;
+DROP POLICY IF EXISTS "Allow all for anon users" ON ali_settings;
+DROP POLICY IF EXISTS "Allow all for anon users" ON cali_settings;
+
+-- 配置策略：允許所有 anon 和 authenticated 用戶的所有操作
+CREATE POLICY "Allow all for anon users" ON cali_orders
     FOR ALL USING (true) WITH CHECK (true);
-*/
+
+CREATE POLICY "Allow all for anon users" ON cali_products
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon users" ON cali_customers
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon users" ON cali_technicians
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon users" ON ali_settings
+    FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow all for anon users" ON cali_settings
+    FOR ALL USING (true) WITH CHECK (true);
 
 -- =====================================================
 -- 9. 權限設定（確保 anon 角色可以存取）
