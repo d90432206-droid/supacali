@@ -10,6 +10,18 @@ export enum CalibrationType {
   EXTERNAL = 'External', // 委外
 }
 
+export const CATEGORIES = [
+  '長度',
+  '壓力',
+  '電量',
+  '溫度',
+  '濕度',
+  '時間',
+  '質量',
+  '化學',
+  '其他'
+];
+
 // Helper to display Chinese status
 export const StatusLabel: Record<string, string> = {
   [CalibrationStatus.PENDING]: '待處理',

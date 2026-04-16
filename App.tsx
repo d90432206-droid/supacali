@@ -46,7 +46,8 @@ const App: React.FC = () => {
   const handleOrderCreated = () => {
     fetchOrders();
     setCopyOrderData(null);
-    setCurrentView('order-list');
+    // Stay on current page as requested by user
+    // setCurrentView('order-list'); 
   };
 
   const handleCopyOrder = (template: OrderTemplate) => {
@@ -63,7 +64,7 @@ const App: React.FC = () => {
       case 'order-list':
         return <OrderList orders={orders} refreshData={fetchOrders} onCopyOrder={handleCopyOrder} />;
       case 'inventory':
-        return <Inventory />;
+        return <Inventory user={user} />;
       case 'settings':
         return <Settings />;
       case 'tools':
@@ -87,7 +88,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-100 text-slate-900">
+    <div className="flex h-screen overflow-hidden bg-slate-100 text-slate-900">
 
       {/* Mobile Menu Overlay */}
       {isMobileMenuOpen && (
@@ -95,14 +96,14 @@ const App: React.FC = () => {
       )}
 
       {/* Sidebar - Desktop & Mobile */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 transform transition-transform duration-300 ease-in-out md:translate-x-0 md:relative h-full overflow-y-auto ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <Sidebar
           currentView={currentView}
           setView={handleViewChange}
           user={user}
           onLogout={handleLogout}
         />
-      </div>
+      </aside>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">

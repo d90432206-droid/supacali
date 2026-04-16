@@ -235,7 +235,7 @@ class SupabaseService {
     return data.map(this.mapProductFromDB);
   }
 
-  async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
+  async addProduct(product: Omit<Product, 'id' | 'lastUpdated'>): Promise<Product> {
     const newItem = {
       id: this.generateUUID(),
       name: product.name,
@@ -268,6 +268,54 @@ class SupabaseService {
     }
 
     return this.mapProductFromDB(newItem);
+  }
+
+  async updateProduct(id: string, updates: Partial<Omit<Product, 'id' | 'lastUpdated'>>): Promise<void> {
+    const products = this.mockStore[CONFIG.TABLES.PRODUCTS];
+    const index = products.findIndex(p => p.id === id);
+    const lastUpdated = new Date().toISOString();
+
+    if (index !== -1) {
+      const p = products[index];
+      if (updates.name !== undefined) p.name = updates.name;
+      if (updates.specification !== undefined) p.specification = updates.specification;
+      if (updates.category !== undefined) p.category = updates.category;
+      if (updates.standardPrice !== undefined) p.standard_price = updates.standardPrice;
+      p.last_updated = lastUpdated;
+    }
+
+    if (this.isConnected && this.supabase) {
+      try {
+        const supabaseUpdates: any = { last_updated: lastUpdated };
+        if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+        if (updates.specification !== undefined) supabaseUpdates.specification = updates.specification;
+        if (updates.category !== undefined) supabaseUpdates.category = updates.category;
+        if (updates.standardPrice !== undefined) supabaseUpdates.standard_price = updates.standardPrice;
+
+        const { error } = await this.supabase
+          .from(CONFIG.TABLES.PRODUCTS)
+          .update(supabaseUpdates)
+          .eq('id', id);
+        if (error) throw error;
+      } catch (e) {
+        this.switchToMock(e);
+      }
+    }
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    this.mockStore[CONFIG.TABLES.PRODUCTS] = this.mockStore[CONFIG.TABLES.PRODUCTS].filter(p => p.id !== id);
+    if (this.isConnected && this.supabase) {
+      try {
+        const { error } = await this.supabase
+          .from(CONFIG.TABLES.PRODUCTS)
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+      } catch (e) {
+        this.switchToMock(e);
+      }
+    }
   }
 
   async getCustomers(): Promise<Customer[]> {

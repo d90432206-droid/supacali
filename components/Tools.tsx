@@ -122,6 +122,28 @@ export const Tools: React.FC = () => {
     });
   };
 
+  // --- Unit Converter Logic: Torque ---
+  const [torque, setTorque] = useState({ nm: '', kgfm: '', kgfcm: '' });
+  const handleTorqueChange = (val: string, unit: 'nm' | 'kgfm' | 'kgfcm') => {
+      if (val === '') {
+          setTorque({ nm: '', kgfm: '', kgfcm: '' });
+          return;
+      }
+      const num = parseFloat(val);
+      if (isNaN(num)) return;
+
+      let nm = 0;
+      if (unit === 'nm') nm = num;
+      else if (unit === 'kgfm') nm = num * 9.80665;
+      else nm = num / 10.1972;
+
+      setTorque({
+          nm: unit === 'nm' ? val : nm.toFixed(4),
+          kgfm: unit === 'kgfm' ? val : (nm / 9.80665).toFixed(4),
+          kgfcm: unit === 'kgfcm' ? val : (nm * 10.1972).toFixed(4),
+      });
+  };
+
 
 
   return (
@@ -447,6 +469,22 @@ export const Tools: React.FC = () => {
                 * 註：1 HP ≈ 0.7457 kW, 1 RT ≈ 3.517 kW
             </p>
 
+        </div>
+
+        {/* Torque Converter */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+            <div className="flex items-center gap-2 font-bold text-slate-700 mb-6 pb-3 border-b border-slate-100">
+                <Activity size={18} className="text-purple-500" />
+                扭力單位 (Torque)
+            </div>
+            <div className="space-y-4">
+                <UnitInput label="Newton-Meter (Nm)" value={torque.nm} onChange={(v) => handleTorqueChange(v, 'nm')} unit="Nm" />
+                <UnitInput label="kgf·m (公斤/米)" value={torque.kgfm} onChange={(v) => handleTorqueChange(v, 'kgfm')} unit="kgf·m" />
+                <UnitInput label="kgf·cm (公斤/厘米)" value={torque.kgfcm} onChange={(v) => handleTorqueChange(v, 'kgfcm')} unit="kgf·cm" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-4 leading-tight italic">
+                * 註：1 kgf·m = 100 kgf·cm ≈ 9.8067 Nm
+            </p>
         </div>
       </div>
     </div>

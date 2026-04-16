@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Product, Customer, CalibrationStatus, CalibrationType, OrderTemplate, CalibrationTypeLabel, Order, Technician } from '../types';
+import { Product, Customer, CalibrationStatus, CalibrationType, OrderTemplate, CalibrationTypeLabel, Order, Technician, CATEGORIES } from '../types';
 import { mockGasService } from '../services/mockGasService';
 import { Save, Plus, Trash2, ShoppingCart, User, Archive, FileText, Building2, Percent, Search, History, Package, Monitor, ArrowDownCircle, CheckSquare, Square } from 'lucide-react';
 
@@ -706,12 +706,16 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 mb-1">分類</label>
-                  <input
-                    type="text"
+                  <select
                     value={currentItem.category || ''}
                     onChange={(e) => setCurrentItem({ ...currentItem, category: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none text-sm"
-                  />
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md outline-none text-sm bg-white"
+                  >
+                    <option value="" disabled>請選擇</option>
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
