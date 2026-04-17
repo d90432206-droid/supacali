@@ -373,8 +373,7 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
                 name: item.productName,
                 specification: item.productSpec,
                 category: item.category,
-                standardPrice: item.price,
-                lastUpdated: new Date().toISOString()
+                standardPrice: item.price
               });
 
               finalProductId = newProd.id;
