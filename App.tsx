@@ -11,7 +11,7 @@ import { Tools } from './components/Tools';
 import { ViewState, Order, OrderTemplate, AuthUser, UserRole } from './types';
 import { mockGasService } from './services/mockGasService';
 import { Menu, Sparkles } from 'lucide-react';
-import { ISO17025System } from './components/iso17025/ISO17025System';
+import { ISO17025System } from './src/components/iso17025/ISO17025System';
 
 const App: React.FC = () => {
   // Auth State
