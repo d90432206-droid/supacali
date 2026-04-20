@@ -10,6 +10,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<'mgmt' | 'logs'>('logs');
   const [userLogs, setUserLogs] = useState<any[]>([]);
   const [sysLogs, setSysLogs] = useState<string[]>([]);
+  const [docSearch, setDocSearch] = useState('');
   const [isLoadingUserLogs, setIsLoadingUserLogs] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error', msg: string } | null>(null);
@@ -31,13 +32,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     }
   };
 
-  const triggerUpdate = async () => {
+  const triggerUpdate = async (docNum?: string) => {
     setIsUpdating(true);
-    setSysLogs(['[系統] 開始更新知識庫...']);
-    setStatus({ type: 'info', msg: '正在同步本地文件與資料庫...' });
+    setSysLogs([`[系統] 開始更新${docNum ? `文件 [${docNum}]` : '全量知識庫'}...`]);
+    setStatus({ type: 'info', msg: docNum ? `正在更新文件 ${docNum}...` : '正在同步本地文件與資料庫...' });
     
     try {
-      const resp = await fetch('http://localhost:3001/api/update-all', { method: 'POST' });
+      const endpoint = docNum ? '/api/ingest-one' : '/api/update-all';
+      const body = docNum ? JSON.stringify({ docNumber: docNum }) : undefined;
+      
+      const resp = await fetch(`http://localhost:3001${endpoint}`, { 
+        method: 'POST',
+        headers: docNum ? { 'Content-Type': 'application/json' } : undefined,
+        body
+      });
       const { jobId } = await resp.json();
       
       const poll = setInterval(async () => {
@@ -47,7 +55,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
         if (done) {
           clearInterval(poll);
           setIsUpdating(false);
-          setStatus({ type: 'success', msg: `更新完成！成功同步 ${result?.success || 0} 份文件。` });
+          setStatus({ type: 'success', msg: docNum ? `文件 [${docNum}] 同步成功！` : `全量更新完成！成功同步 ${result?.success || 0} 份文件。` });
+          if (docNum) setDocSearch('');
         }
       }, 1000);
     } catch (err: any) {
@@ -115,16 +124,43 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                   <h3 style={{fontSize: '1rem', color: '#1e40af', marginBottom: '0.8rem', display: 'flex', alignItems: 'center'}}>
                     <Database size={18} style={{marginRight: '8px'}} /> 文件同步更新
                   </h3>
-                  <p style={{fontSize:'0.85rem', color:'#1e40af', marginBottom:'1rem', opacity:0.8}}>將掃描您的三個文件夾 (品質手冊、品質文件、技術文件)，自動將最新 version 同步至 Supabase。</p>
-                  <button 
-                    onClick={triggerUpdate}
-                    disabled={isUpdating}
-                    style={{
-                      width: '100%', padding: '1rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}
-                  >
-                    {isUpdating ? <Loader2 size={18} className="animate-spin" /> : <RefreshCw size={18} style={{marginRight:'8px'}} />} 一鍵更新知識庫 (Sync)
-                  </button>
+                  
+                  <div style={{display:'flex', flexDirection:'column', gap:'12px'}}>
+                    <div style={{display:'flex', gap:'8px'}}>
+                      <input 
+                        type="text" 
+                        placeholder="輸入編號如: CLP-7601" 
+                        value={docSearch}
+                        onChange={(e)=>setDocSearch(e.target.value.toUpperCase())}
+                        style={{flex:1, padding:'10px', borderRadius:'8px', border:'1px solid #bfdbfe', fontSize:'0.9rem'}}
+                      />
+                      <button 
+                        onClick={() => triggerUpdate(docSearch)}
+                        disabled={isUpdating || !docSearch}
+                        style={{
+                          padding: '0 20px', background: !docSearch?'#94a3b8':'#2563eb', color: 'white', border: 'none', borderRadius: '8px', cursor: docSearch?'pointer':'not-allowed', fontWeight: 'bold'
+                        }}
+                      >
+                        單一更新
+                      </button>
+                    </div>
+                    
+                    <div style={{display:'flex', alignItems:'center', gap:'10px', margin:'10px 0'}}>
+                      <div style={{flex:1, height:'1px', background:'#bfdbfe'}}></div>
+                      <span style={{fontSize:'0.75rem', color:'#60a5fa'}}>或</span>
+                      <div style={{flex:1, height:'1px', background:'#bfdbfe'}}></div>
+                    </div>
+
+                    <button 
+                      onClick={() => triggerUpdate()}
+                      disabled={isUpdating}
+                      style={{
+                        width: '100%', padding: '0.8rem', background: '#3b82f6', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize:'0.85rem'
+                      }}
+                    >
+                      {isUpdating && !docSearch ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} style={{marginRight:'8px'}} />} 同步資料夾所有檔案 (Full Sync)
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{flex: 1, background: '#1e293b', borderRadius: '12px', padding: '1rem', color: '#cbd5e1', fontSize: '0.8rem', fontFamily: 'monospace', height: '250px', overflowY: 'auto'}}>
