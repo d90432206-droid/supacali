@@ -122,3 +122,21 @@ export async function searchKnowledge(query: string): Promise<string> {
     return "檢索知識庫時發生錯誤。";
   }
 }
+
+/**
+ * 儲存系統動作日誌
+ */
+export async function saveIsoLog(userName: string, actionType: string, message?: string, response?: string) {
+  if (!supabaseUrl || !supabaseKey) return;
+  try {
+    await supabase.from('iso17025_logs').insert([{
+      user_name: userName,
+      action_type: actionType,
+      message_content: message || null,
+      agent_response: response || null,
+      created_at: new Date().toISOString()
+    }]);
+  } catch (error) {
+    console.warn("Log saving failed (Check if 'iso17025_logs' table exists):", error);
+  }
+}

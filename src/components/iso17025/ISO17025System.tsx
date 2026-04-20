@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AGENTS } from '../../data/iso17025_agents';
 import type { Agent, Message } from '../../types/iso17025';
 import { askAgent, decomposeLabTask } from '../../services/iso17025/gemini';
-import { searchKnowledge, supabase } from '../../services/iso17025/supabase';
+import { searchKnowledge, supabase, saveIsoLog } from '../../services/iso17025/supabase';
 import { Settings, BookOpen, FileText, Wrench, Database, Send, Sparkles } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import ReactMarkdown from 'react-markdown';
@@ -62,6 +62,13 @@ export const ISO17025System: React.FC = () => {
   const [docs, setDocs]               = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // 獲取目前用戶
+    const userName = localStorage.getItem('chuyi_user_name') || '系統工程師';
+    saveIsoLog(userName, 'ENTER_SYSTEM');
+  }, []);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const loadDocs = async () => {
@@ -84,6 +91,9 @@ export const ISO17025System: React.FC = () => {
           const ctx = await searchKnowledge(query);
           const ans = await askAgent(selectedAgent.systemPrompt, query, ctx);
           setMessages(prev => [...prev, { id: `ma-${Date.now()}`, role: 'assistant', content: ans, agentId: 'iso_mgr', timestamp: Date.now() }]);
+          
+          // 記錄日誌
+          saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_INQUIRY', query, ans);
         } else {
           for (const t of decomp.tasks) {
             const expert = AGENTS.find(a => a.id === t.agentId);
@@ -92,6 +102,9 @@ export const ISO17025System: React.FC = () => {
             const ctx = await searchKnowledge(t.task);
             const reply = await askAgent(expert.systemPrompt, t.task, ctx);
             setMessages(prev => [...prev, { id: `ex-${Date.now()}`, role: 'assistant', content: reply, agentId: expert.id, timestamp: Date.now() }]);
+            
+            // 記錄日誌 (專家子任務)
+            saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_AGENT_TASK', t.task, reply);
           }
         }
       } else {
@@ -99,6 +112,9 @@ export const ISO17025System: React.FC = () => {
         const ctx = await searchKnowledge(query);
         const reply = await askAgent(selectedAgent.systemPrompt, query, ctx);
         setMessages(prev => [...prev, { id: `s-${Date.now()}`, role: 'assistant', content: reply, agentId: selectedAgent.id, timestamp: Date.now() }]);
+        
+        // 記錄日誌 (單一 Agent 諮詢)
+        saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_CONSULT', query, reply);
       }
     } catch (err) {
       setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: '❌ 系統忙碌', timestamp: Date.now() }]);
