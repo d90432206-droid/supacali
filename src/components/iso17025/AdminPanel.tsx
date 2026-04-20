@@ -1,77 +1,80 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../services/iso17025/supabase';
-import { Trash2, AlertCircle, CheckCircle2, Loader2, Upload } from 'lucide-react';
+import { Trash2, AlertCircle, CheckCircle2, Loader2, Users, Database, Clock, RefreshCw } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
-  const [logs, setLogs] = useState<string[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [status, setStatus] = useState<{ type: 'info' | 'success' | 'error', msg: string } | null>(null);
+  const [userLogs, setUserLogs] = useState<any[]>([]);
+  const [isLoadingUserLogs, setIsLoadingUserLogs] = useState(false);
 
-  const addLog = (msg: string) => setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-100));
-
-  const clearDatabase = async () => {
-    if (!confirm('確定要清空 17025 知識庫嗎？這將刪除所有文件與內容。')) return;
-    setIsProcessing(true);
-    setStatus({ type: 'info', msg: '正在清空資料庫...' });
+  const fetchUserLogs = async () => {
+    setIsLoadingUserLogs(true);
     try {
-      const { error: err1 } = await supabase.from('iso_knowledge_chunks').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      const { error: err2 } = await supabase.from('iso_documents').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      
-      if (err1 || err2) throw new Error('刪除失敗');
-      setStatus({ type: 'success', msg: '資料庫已清空' });
-      addLog('資料庫已清空');
+      const { data, error } = await supabase
+        .from('iso17025_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setUserLogs(data || []);
     } catch (err: any) {
-      setStatus({ type: 'error', msg: err.message });
-      addLog(`錯誤: ${err.message}`);
+      console.error(err);
     } finally {
-      setIsProcessing(false);
+      setIsLoadingUserLogs(false);
     }
   };
 
+  useEffect(() => {
+    fetchUserLogs();
+  }, []);
+
   return (
     <div className="doc-overlay" style={{zIndex: 10000}}>
-      <div className="doc-modal" style={{maxWidth: '600px'}}>
+      <div className="doc-modal" style={{width: '95vw', maxWidth: '800px', height: '80vh'}}>
         <div className="doc-modal-head">
-          <h2>17025 後台管理</h2>
-          <button onClick={onClose}>✕</button>
+          <div style={{display:'flex', alignItems:'center', gap:'1rem'}}>
+            <h2 style={{margin:0}}>ISO 17025 系統活動日誌</h2>
+          </div>
+          <button onClick={onClose} style={{background:'none', border:'none', fontSize:'24px', cursor:'pointer'}}>✕</button>
         </div>
-        <div style={{padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem'}}>
-          <div style={{background: '#fff7ed', padding: '1rem', borderRadius: '8px', border: '1px solid #ffedd5'}}>
-            <h3 style={{fontSize: '0.9rem', color: '#9a3412', marginBottom: '0.5rem', display: 'flex', alignItems: 'center'}}>
-              <AlertCircle size={16} style={{marginRight: '6px'}} /> 危險操作
-            </h3>
-            <button 
-              onClick={clearDatabase}
-              disabled={isProcessing}
-              style={{
-                width: '100%', padding: '0.75rem', background: '#dc2626', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}
-            >
-              <Trash2 size={18} style={{marginRight: '8px'}} /> 清空所有知識庫數據
-            </button>
-          </div>
 
-          <div style={{flex: 1, background: '#1e293b', borderRadius: '8px', padding: '1rem', color: '#cbd5e1', fontSize: '0.8rem', fontFamily: 'monospace', height: '200px', overflowY: 'auto'}}>
-            <div style={{color: '#94a3b8', borderBottom: '1px solid #334155', paddingBottom: '0.5rem', marginBottom: '0.5rem'}}>系統日誌</div>
-            {logs.map((log, i) => <div key={i} style={{marginBottom: '2px'}}>{log}</div>)}
-            {logs.length === 0 && <div style={{opacity: 0.5}}>等待操作...</div>}
-          </div>
-
-          {status && (
-            <div style={{
-              padding: '1rem', borderRadius: '6px', display: 'flex', alignItems: 'center', gap: '10px',
-              background: status.type==='success'?'#f0fdf4':status.type==='error'?'#fef2f2':'#eff6ff',
-              color: status.type==='success'?'#16a34a':status.type==='error'?'#dc2626':'#2563eb',
-              border: `1px solid ${status.type==='success'?'#bcf0da':status.type==='error'?'#fecaca':'#bfdbfe'}`
-            }}>
-              {status.type === 'success' ? <CheckCircle2 size={18} /> : status.type === 'error' ? <AlertCircle size={18} /> : <Loader2 size={18} className="animate-spin" />}
-              <span style={{fontWeight: 'bold'}}>{status.msg}</span>
+        <div style={{flex: 1, overflowY: 'auto', padding: '1.5rem'}}>
+          <div style={{display:'flex', flexDirection:'column', gap:'1rem'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <div style={{fontSize:'0.9rem', color:'#64748b', display:'flex', alignItems:'center', gap:'6px'}}><Users size={16} /> 最近活動記錄 (50筆)</div>
+              <button onClick={fetchUserLogs} disabled={isLoadingUserLogs} style={{display:'flex', alignItems:'center', gap:'4px', background:'none', border:'1px solid #e2e8f0', padding:'4px 8px', borderRadius:'4px', fontSize:'0.8rem', cursor:'pointer'}}><RefreshCw size={14} className={isLoadingUserLogs?'animate-spin':''} /> 刷新</button>
             </div>
-          )}
+            
+            <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+              {userLogs.map(log => (
+                <div key={log.id} style={{padding:'1rem', border:'1px solid #f1f5f9', borderRadius:'10px', background:'#f8fafc'}}>
+                  <div style={{display:'flex', justifyContent:'space-between', marginBottom:'8px'}}>
+                    <span style={{fontWeight:800, color:'#0f172a', fontSize:'0.9rem'}}>{log.user_name}</span>
+                    <span style={{fontSize:'0.75rem', color:'#94a3b8', display:'flex', alignItems:'center', gap:'4px'}}><Clock size={12} /> {new Date(log.created_at).toLocaleString()}</span>
+                  </div>
+                  <div style={{fontSize:'0.8rem', background: log.action_type==='ENTER_SYSTEM'?'#fef3c7':'#dcfce7', color: log.action_type==='ENTER_SYSTEM'?'#92400e':'#166534', padding:'2px 8px', borderRadius:'4px', display:'inline-block', marginBottom:'8px'}}>{
+                    log.action_type === 'ENTER_SYSTEM' ? '🚪 進入系統' : 
+                    log.action_type === 'CHAT_INQUIRY' ? '❓ 發起諮詢 (管理者)' :
+                    log.action_type === 'CHAT_CONSULT' ? '💬 單一專家諮詢' : '🔧 專家協作任務'
+                  }</div>
+                  {log.message_content && (
+                    <div style={{fontSize:'0.85rem', color:'#334055', marginTop:'4px', borderLeft:'2px solid #e2e8f0', paddingLeft:'8px'}}>
+                      <strong>詢問：</strong> {log.message_content}
+                    </div>
+                  )}
+                  {log.agent_response && (
+                    <div style={{fontSize:'0.85rem', color:'#64748b', marginTop:'4px', maxHeight:'120px', overflowY:'auto', borderTop:'1px dashed #e2e8f0', paddingTop:'8px'}}>
+                      <strong>AI回覆：</strong> {log.agent_response}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {userLogs.length === 0 && <div style={{textAlign:'center', padding:'3rem', opacity:0.3}}>目前尚無活動記錄</div>}
+            </div>
+          </div>
         </div>
       </div>
     </div>
