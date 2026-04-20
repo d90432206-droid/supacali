@@ -3,7 +3,7 @@ import { AGENTS } from '../../data/iso17025_agents';
 import type { Agent, Message } from '../../types/iso17025';
 import { askAgent, decomposeLabTask } from '../../services/iso17025/gemini';
 import { searchKnowledge, supabase, saveIsoLog } from '../../services/iso17025/supabase';
-import { Settings, BookOpen, FileText, Wrench, Database, Send, Sparkles } from 'lucide-react';
+import { Settings, BookOpen, FileText, Wrench, Database, Send, Sparkles, Brain } from 'lucide-react';
 import AdminPanel from './AdminPanel';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
