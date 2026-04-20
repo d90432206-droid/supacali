@@ -60,6 +60,7 @@ export const ISO17025System: React.FC = () => {
   const [showDocs, setShowDocs]       = useState(false);
   const [filterCat, setFilterCat]     = useState<string | null>(null);
   const [docs, setDocs]               = useState<any[]>([]);
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -85,41 +86,40 @@ export const ISO17025System: React.FC = () => {
     try {
       if (selectedAgent.id === 'iso_mgr') {
         setSpeakingId('iso_mgr');
+        setCurrentStatus('實驗室總管正在分析您的需求並拆解任務...');
         const decomp = await decomposeLabTask(query);
-        setMessages(prev => [...prev, { id: `m-${Date.now()}`, role: 'assistant', content: `⚡ ${decomp.reasoning}`, agentId: 'iso_mgr', timestamp: Date.now() }]);
+        setMessages(prev => [...prev, { id: `m-${Date.now()}`, role: 'assistant', content: `⚡ 任務分析：${decomp.reasoning}`, agentId: 'iso_mgr', timestamp: Date.now() }]);
+        
         if (decomp.tasks.length === 0) {
+          setCurrentStatus('總管正在檢索文件庫並彙整答覆...');
           const ctx = await searchKnowledge(query);
           const ans = await askAgent(selectedAgent.systemPrompt, query, ctx);
           setMessages(prev => [...prev, { id: `ma-${Date.now()}`, role: 'assistant', content: ans, agentId: 'iso_mgr', timestamp: Date.now() }]);
-          
-          // 記錄日誌
           saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_INQUIRY', query, ans);
         } else {
           for (const t of decomp.tasks) {
             const expert = AGENTS.find(a => a.id === t.agentId);
             if (!expert) continue;
             setSpeakingId(expert.id);
+            setCurrentStatus(`${expert.name} 正在處理子任務：${t.task.substring(0, 15)}...`);
             const ctx = await searchKnowledge(t.task);
             const reply = await askAgent(expert.systemPrompt, t.task, ctx);
             setMessages(prev => [...prev, { id: `ex-${Date.now()}`, role: 'assistant', content: reply, agentId: expert.id, timestamp: Date.now() }]);
-            
-            // 記錄日誌 (專家子任務)
             saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_AGENT_TASK', t.task, reply);
           }
         }
       } else {
         setSpeakingId(selectedAgent.id);
+        setCurrentStatus(`${selectedAgent.name} 正在深度檢索條文與彙整回答...`);
         const ctx = await searchKnowledge(query);
         const reply = await askAgent(selectedAgent.systemPrompt, query, ctx);
         setMessages(prev => [...prev, { id: `s-${Date.now()}`, role: 'assistant', content: reply, agentId: selectedAgent.id, timestamp: Date.now() }]);
-        
-        // 記錄日誌 (單一 Agent 諮詢)
         saveIsoLog(localStorage.getItem('chuyi_user_name') || '系統工程師', 'CHAT_CONSULT', query, reply);
       }
     } catch (err) {
-      setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: '❌ 系統忙碌', timestamp: Date.now() }]);
+      setMessages(prev => [...prev, { id: `e-${Date.now()}`, role: 'assistant', content: '❌ 系統忙碌或連線逾時，請稍後再試', timestamp: Date.now() }]);
     } finally {
-      setIsLoading(false); setSpeakingId(null);
+      setIsLoading(false); setSpeakingId(null); setCurrentStatus(null);
     }
   };
 
@@ -178,6 +178,14 @@ export const ISO17025System: React.FC = () => {
                 </div>
               );
             })}
+            {isLoading && currentStatus && (
+              <div className="message-bubble assistant thought">
+                <div className="bubble-sender" style={{color:'#64748b'}}>系統狀態</div>
+                <div className="bubble-body" style={{fontStyle:'italic', color:'#64748b', fontSize:'0.9rem', display:'flex', alignItems:'center', gap:'10px'}}>
+                  <Brain size={16} className="animate-pulse" /> {currentStatus}
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
