@@ -140,8 +140,8 @@ export const ISO17025System: React.FC = () => {
           </div>
         </div>
 
-        <div className="cave-center">
-          <div className="chat-messages">
+        <div className="cave-center" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'white' }}>
+          <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '2rem', height: 'calc(100vh - 180px)' }}>
             {messages.length === 0 && (
               <div style={{textAlign:'center', marginTop:'8rem', opacity:0.3, animation:'pulse 2s infinite'}}>
                 <Sparkles size={48} /><p style={{marginTop:'1.5rem', fontSize:'1.2rem', fontWeight:600}}>專家團隊已就緒，請輸入問題</p>
@@ -197,10 +197,13 @@ export const ISO17025System: React.FC = () => {
       </div>
 
       {showDocs && (
-        <div className="doc-overlay" onClick={()=>setShowDocs(false)}>
-          <div className="doc-modal" onClick={e=>e.stopPropagation()}>
-             <div className="doc-modal-head"><h2>{filterCat ? (filterCat==='Manual'?'品質手冊':filterCat==='Procedure'?'程序文件':'技術文件') : '全文件資料庫'}</h2><button onClick={()=>setShowDocs(false)}>✕</button></div>
-             <div className="doc-table-wrap">
+        <div className="doc-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }} onClick={()=>setShowDocs(false)}>
+          <div className="doc-modal" style={{ width: '90vw', maxWidth: '900px', maxHeight: '80vh', background: 'white', borderRadius: '16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }} onClick={e=>e.stopPropagation()}>
+             <div className="doc-modal-head" style={{ padding: '20px', borderBottom: '1px solid #eee', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+               <h2 style={{ margin: 0 }}>{filterCat ? (filterCat==='Manual'?'品質手冊':filterCat==='Procedure'?'程序文件':'技術文件') : '全文件資料庫'}</h2>
+               <button style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer' }} onClick={()=>setShowDocs(false)}>✕</button>
+             </div>
+             <div className="doc-table-wrap" style={{ flex: 1, overflowY: 'auto' }}>
                <table className="doc-table-modern">
                  <thead><tr><th>編號</th><th>名稱</th><th>版次</th><th>日期</th></tr></thead>
                  <tbody>
