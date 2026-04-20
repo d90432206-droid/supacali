@@ -92,7 +92,7 @@ export interface DashboardStats {
   pendingAmount: number;
 }
 
-export type ViewState = 'dashboard' | 'create-order' | 'order-list' | 'inventory' | 'settings' | 'tools';
+export type ViewState = 'dashboard' | 'create-order' | 'order-list' | 'inventory' | 'settings' | 'tools' | 'iso17025';
 
 export interface OrderTemplate extends Partial<Order> {
   isCopy?: boolean;

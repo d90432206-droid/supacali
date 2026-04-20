@@ -100,6 +100,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentView, setView, user, on
         <NavItem view="dashboard" icon={<LayoutDashboard size={18} />} label="營運儀表板" />
         <NavItem view="create-order" icon={<PlusCircle size={18} />} label="建立校正訂單" />
         <NavItem view="order-list" icon={<List size={18} />} label="訂單追蹤" />
+        <NavItem view="iso17025" icon={<ShieldCheck size={18} />} label="17025 系統" />
 
         <div className="my-6 border-t border-slate-800"></div>
 

@@ -10,7 +10,8 @@ import { Login } from './components/Login';
 import { Tools } from './components/Tools';
 import { ViewState, Order, OrderTemplate, AuthUser, UserRole } from './types';
 import { mockGasService } from './services/mockGasService';
-import { Menu } from 'lucide-react';
+import { Menu, Sparkles } from 'lucide-react';
+import { ISO17025System } from './components/iso17025/ISO17025System';
 
 const App: React.FC = () => {
   // Auth State
@@ -69,6 +70,8 @@ const App: React.FC = () => {
         return <Settings />;
       case 'tools':
         return <Tools />;
+      case 'iso17025':
+        return <ISO17025System />;
       default:
         return <Dashboard orders={orders} />;
     }
@@ -119,8 +122,8 @@ const App: React.FC = () => {
         </div>
 
         {/* Scrollable Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50/50">
-          <div className="max-w-7xl mx-auto animate-fade-in">
+        <main className={`flex-1 bg-slate-50/50 ${currentView === 'iso17025' ? 'h-full overflow-hidden p-0' : 'overflow-y-auto p-4 md:p-8'}`}>
+          <div className={`animate-fade-in ${currentView === 'iso17025' ? 'w-full h-full flex flex-col' : 'max-w-7xl mx-auto'}`}>
             {renderContent()}
           </div>
         </main>
