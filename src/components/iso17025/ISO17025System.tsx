@@ -130,8 +130,13 @@ export const ISO17025System: React.FC = () => {
     <div className="iso17025-container">
       {showAdmin && <AdminPanel onClose={() => { setShowAdmin(false); loadDocs(); }} />}
       <div className="cave-header">
-        <div className="cave-title">🦾 制宜實驗室 — 17025 專家顧問系統</div>
-        <div style={{fontSize:'0.8rem', opacity:0.6}}>ISO 17025 Digital Consultant</div>
+        <div className="header-left">
+          <div className="cave-title">🦾 制宜實驗室 — 17025 專家顧問系統</div>
+          <div className="cave-subtitle">ISO 17025 Digital Consultant</div>
+        </div>
+        <button className="header-admin-btn" onClick={() => setShowAdmin(true)}>
+          <Settings size={18} />
+        </button>
       </div>
       <div className="cave-main">
         <div className="cave-wall">
@@ -156,11 +161,11 @@ export const ISO17025System: React.FC = () => {
           </div>
         </div>
 
-        <div className="cave-center" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: 'white' }}>
-          <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '2rem', height: 'calc(100vh - 180px)' }}>
+        <div className="cave-center">
+          <div className="chat-messages">
             {messages.length === 0 && (
-              <div style={{textAlign:'center', marginTop:'8rem', opacity:0.3, animation:'pulse 2s infinite'}}>
-                <Sparkles size={48} /><p style={{marginTop:'1.5rem', fontSize:'1.2rem', fontWeight:600}}>專家團隊已就緒，請輸入問題</p>
+              <div className="empty-state">
+                <Sparkles size={48} /><p>專家團隊已就緒，請輸入問題</p>
               </div>
             )}
             {messages.map(m => {
