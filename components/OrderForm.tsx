@@ -258,6 +258,37 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
     );
   };
 
+  const resetForm = () => {
+    setOrderNumber('');
+    setCustomerQuery('');
+    setEqNumberQuery('');
+    setEqNameQuery('');
+    setCart([]);
+    setSelectedTechnicians([]);
+    setDiscountRate(100);
+    setHasAttemptedSubmit(false);
+    
+    // Set default target date to 7 days from now
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    setTargetDate(d.toISOString().split('T')[0]);
+
+    // Reset item form
+    setProductNameQuery('');
+    setCurrentItem({
+      price: 0,
+      quantity: 1,
+      category: '',
+      productSpec: '',
+      calibrationType: CalibrationType.INTERNAL,
+      saveToInventory: false,
+      productId: ''
+    });
+
+    setFeedback('訂單建立成功！已重置表單，可繼續新增下一筆。');
+    setTimeout(() => setFeedback(null), 5000);
+  };
+
   const addToCart = () => {
     if (!productNameQuery || currentItem.price === undefined) {
       alert('請選擇校正品項並確認價格');
@@ -424,7 +455,10 @@ export const OrderForm: React.FC<OrderFormProps> = ({ onOrderCreated, copyData }
         mockGasService.getCustomers()
       ]).catch(console.error);
 
-      onOrderCreated(); // Trigger view switch
+      // Reset form for next entry
+      resetForm();
+      
+      onOrderCreated(); // Trigger view switch (stays on current view in App.tsx)
     } catch (error) {
       console.error('Error creating orders', error);
       alert('建立訂單失敗');
