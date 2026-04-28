@@ -30,16 +30,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     return orders.filter(o => new Date(o.createDate).getFullYear().toString() === selectedYear);
   }, [orders, selectedYear]);
 
+  // Group orders by Order Number for work-order based statistics
+  const groupedOrders = useMemo(() => {
+    const groups = new Map<string, { totalAmount: number, status: CalibrationStatus, technicians: string[] }>();
+    filteredOrders.forEach(o => {
+      if (!groups.has(o.orderNumber)) {
+        groups.set(o.orderNumber, { 
+          totalAmount: 0, 
+          status: o.status, 
+          technicians: o.technicians || [] 
+        });
+      }
+      const g = groups.get(o.orderNumber)!;
+      g.totalAmount += (o.totalAmount || 0);
+    });
+    return Array.from(groups.values());
+  }, [filteredOrders]);
+
   const stats = useMemo(() => {
-    const totalRevenue = filteredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
-    const active = filteredOrders.filter(o => o.status !== CalibrationStatus.COMPLETED).length;
-    const completed = filteredOrders.filter(o => o.status === CalibrationStatus.COMPLETED).length;
-    const pendingVal = filteredOrders
-      .filter(o => o.status !== CalibrationStatus.COMPLETED)
-      .reduce((sum, o) => sum + o.totalAmount, 0);
+    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const active = groupedOrders.filter(g => g.status !== CalibrationStatus.COMPLETED).length;
+    const completed = groupedOrders.filter(g => g.status === CalibrationStatus.COMPLETED).length;
+    const pendingVal = groupedOrders
+      .filter(g => g.status !== CalibrationStatus.COMPLETED)
+      .reduce((sum, g) => sum + g.totalAmount, 0);
 
     return { totalRevenue, active, completed, pendingVal };
-  }, [filteredOrders]);
+  }, [filteredOrders, groupedOrders]);
 
   const revenueData = useMemo(() => {
     const map = new Map<string, number>();
@@ -50,7 +67,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
     filteredOrders.forEach(order => {
       const date = new Date(order.createDate);
       const month = months[date.getMonth()];
-      map.set(month, (map.get(month) || 0) + order.totalAmount);
+      map.set(month, (map.get(month) || 0) + (order.totalAmount || 0));
     });
 
     return Array.from(map).map(([name, value]) => ({ name, value }));
@@ -58,26 +75,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ orders }) => {
 
   const statusData = useMemo(() => {
     const map = new Map<string, number>();
-    filteredOrders.forEach(o => {
-      const label = StatusLabel[o.status] || o.status;
+    groupedOrders.forEach(g => {
+      const label = StatusLabel[g.status] || g.status;
       map.set(label, (map.get(label) || 0) + 1);
     });
     return Array.from(map).map(([name, value]) => ({ name, value }));
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   const technicianData = useMemo(() => {
     const map = new Map<string, number>();
-    filteredOrders.forEach(o => {
-      const techs = (o.technicians && o.technicians.length > 0) ? o.technicians : ['未指派'];
+    groupedOrders.forEach(g => {
+      const techs = (g.technicians && g.technicians.length > 0) ? g.technicians : ['未指派'];
+      const shareAmount = g.totalAmount / techs.length;
       techs.forEach(tech => {
-        map.set(tech, (map.get(tech) || 0) + o.totalAmount);
+        map.set(tech, (map.get(tech) || 0) + shareAmount);
       });
     });
     // Sort by value desc
     return Array.from(map)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredOrders]);
+  }, [groupedOrders]);
 
   const categoryData = useMemo(() => {
     const map = new Map<string, { revenue: number, count: number }>();
